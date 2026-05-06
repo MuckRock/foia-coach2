@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: foia_coach_api
+      POSTGRES_USER: foia_coach_api
+      POSTGRES_PASSWORD: foia_coach_api
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  django:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    depends_on:
+      - postgres
+    env_file:
+      - .envs/.local/.django
+      - .envs/.local/.postgres
+    environment:
+      DATABASE_URL: "postgres://foia_coach_api:foia_coach_api@postgres:5432/foia_coach_api"
+      DJANGO_SETTINGS_MODULE: config.settings.local
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    command: uvicorn config.asgi:application --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  postgres_data:

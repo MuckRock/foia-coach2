@@ -1,0 +1,52 @@
+[
+  {
+    "record_number": "1.10",
+    "record_title": "Building Permits",
+    "record_description": "Permits issued for construction of buildings and structures.",
+    "record_custodian_preservation_destruction_requirement": "Destroy after retention period.",
+    "minimum_retention_period": "20 years",
+    "regulatory_citation_statutes_rules_notations": "C.R.S. 24-80-101",
+    "page_number": 5,
+    "document_title": "SCHEDULE NO. 1 - BUILDING AND STRUCTURE RECORDS (Colorado Special Districts)"
+  },
+  {
+    "record_number": "1.20",
+    "record_title": "Building Inspection Reports",
+    "record_description": "Reports from inspections of buildings and structures.",
+    "record_custodian_preservation_destruction_requirement": "",
+    "minimum_retention_period": "See Schedule 7",
+    "regulatory_citation_statutes_rules_notations": "",
+    "page_number": 6,
+    "document_title": "SCHEDULE NO. 1 - BUILDING AND STRUCTURE RECORDS (Colorado Special Districts)"
+  },
+  {
+    "record_number": "1.30",
+    "record_title": "Historic Building Records",
+    "record_description": "Records pertaining to historically significant structures.",
+    "record_custodian_preservation_destruction_requirement": "Do not destroy. Transfer to archives.",
+    "minimum_retention_period": "Permanent",
+    "regulatory_citation_statutes_rules_notations": "C.R.S. 24-80-401",
+    "page_number": 7,
+    "document_title": "SCHEDULE NO. 1 - BUILDING AND STRUCTURE RECORDS (Colorado Special Districts)"
+  },
+  {
+    "record_number": "2.10",
+    "record_title": "Budget Documents",
+    "record_description": "Annual budget documents and supporting worksheets.",
+    "record_custodian_preservation_destruction_requirement": "Shred after retention period.",
+    "minimum_retention_period": "7 years",
+    "regulatory_citation_statutes_rules_notations": "",
+    "page_number": 12,
+    "document_title": "SCHEDULE NO. 2 - FINANCIAL RECORDS (Colorado Special Districts)"
+  },
+  {
+    "record_number": "2.20",
+    "record_title": "Audit Reports",
+    "record_description": "Annual audit reports from independent auditors.",
+    "record_custodian_preservation_destruction_requirement": "",
+    "minimum_retention_period": "10 years",
+    "regulatory_citation_statutes_rules_notations": "C.R.S. 29-1-606",
+    "page_number": 13,
+    "document_title": "SCHEDULE NO. 2 - FINANCIAL RECORDS (Colorado Special Districts)"
+  }
+]
