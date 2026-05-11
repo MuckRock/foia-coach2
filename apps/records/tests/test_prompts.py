@@ -2,7 +2,7 @@
 import pytest
 from asgiref.sync import sync_to_async
 
-from apps.records.prompts import build_messages, format_retrieved_records
+from apps.records.prompts import build_messages, format_retrieved_chunks, format_retrieved_records
 from apps.records.tests.factories import SystemPromptFactory
 
 
@@ -24,6 +24,39 @@ def make_record(**kwargs):
     }
     defaults.update(kwargs)
     return defaults
+
+
+def make_chunk(**kwargs):
+    defaults = {
+        "id": 1,
+        "chunk_index": 0,
+        "page_number": 3,
+        "text": "You may request records by submitting a written request.",
+        "token_count": 10,
+        "document_title": "Colorado CORA Guide",
+        "document_type": "FOIA Guide",
+        "jurisdiction": "Colorado",
+        "similarity_score": 0.85,
+    }
+    defaults.update(kwargs)
+    return defaults
+
+
+class TestFormatRetrievedChunks:
+    def test_empty_returns_no_results_string(self):
+        result = format_retrieved_chunks([])
+        assert "No relevant" in result
+
+    def test_includes_title_and_page(self):
+        chunk = make_chunk()
+        result = format_retrieved_chunks([chunk])
+        assert "Colorado CORA Guide" in result
+        assert "page 3" in result
+
+    def test_includes_text(self):
+        chunk = make_chunk()
+        result = format_retrieved_chunks([chunk])
+        assert "written request" in result
 
 
 class TestFormatRetrievedRecords:
@@ -59,7 +92,7 @@ class TestBuildMessages:
     @pytest.mark.asyncio
     async def test_structure(self):
         await sync_to_async(SystemPromptFactory)(is_active=True, content="You are a helpful assistant.")
-        messages = await build_messages("How long for building permits?", [], [])
+        messages = await build_messages("How long for building permits?", [], [], [])
         assert messages[0]["role"] == "system"
         assert messages[-1]["role"] == "user"
 
@@ -67,7 +100,7 @@ class TestBuildMessages:
     async def test_context_injected(self):
         await sync_to_async(SystemPromptFactory)(is_active=True, content="You are a helpful assistant.")
         records = [make_record()]
-        messages = await build_messages("How long for building permits?", records, [])
+        messages = await build_messages("How long for building permits?", records, [], [])
         system_messages = [m for m in messages if m["role"] == "system"]
         combined = " ".join(m["content"] for m in system_messages)
         assert "Building Permits" in combined
@@ -81,7 +114,7 @@ class TestBuildMessages:
             {"role": "assistant", "content": "20 years."},
             {"role": "user", "content": user_msg},
         ]
-        messages = await build_messages(user_msg, [], history)
+        messages = await build_messages(user_msg, [], [], history)
         user_messages = [m for m in messages if m["role"] == "user"]
         # The duplicate should be deduplicated; only one user message with that content
         assert user_messages.count({"role": "user", "content": user_msg}) == 1
@@ -89,6 +122,6 @@ class TestBuildMessages:
     @pytest.mark.asyncio
     async def test_last_message_is_user(self):
         await sync_to_async(SystemPromptFactory)(is_active=True, content="You are helpful.")
-        messages = await build_messages("What is the retention period?", [], [])
+        messages = await build_messages("What is the retention period?", [], [], [])
         assert messages[-1]["role"] == "user"
         assert messages[-1]["content"] == "What is the retention period?"

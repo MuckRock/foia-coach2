@@ -3,6 +3,15 @@ from asgiref.sync import sync_to_async
 from apps.records.models import SystemPrompt
 
 
+def format_retrieved_chunks(chunks: list[dict]) -> str:
+    if not chunks:
+        return "No relevant supporting documents were found."
+    parts = ["Relevant supporting document excerpts:"]
+    for i, c in enumerate(chunks, 1):
+        parts.append(f"\n[{i}] Source: {c['document_title']}, page {c['page_number']}\n{c['text']}")
+    return "\n".join(parts)
+
+
 def format_retrieved_records(records: list[dict]) -> str:
     """Format retrieved records as context for the LLM prompt."""
     if not records:
@@ -28,6 +37,7 @@ def format_retrieved_records(records: list[dict]) -> str:
 async def build_messages(
     user_message: str,
     records: list[dict],
+    doc_chunks: list[dict],
     conversation_history: list[dict],
 ) -> list[dict]:
     """
@@ -40,7 +50,12 @@ async def build_messages(
     - The latest user message last
     """
     system_prompt = await sync_to_async(SystemPrompt.get_active)()
-    context = format_retrieved_records(records)
+    combined_context = (
+        "=== RETENTION SCHEDULE RECORDS ===\n"
+        f"{format_retrieved_records(records)}\n\n"
+        "=== SUPPORTING DOCUMENTS ===\n"
+        f"{format_retrieved_chunks(doc_chunks)}"
+    )
 
     prior_history = [
         m for m in conversation_history
@@ -50,6 +65,6 @@ async def build_messages(
     return [
         {"role": "system", "content": system_prompt},
         *prior_history,
-        {"role": "system", "content": f"Retrieved context:\n\n{context}"},
+        {"role": "system", "content": f"Retrieved context:\n\n{combined_context}"},
         {"role": "user", "content": user_message},
     ]

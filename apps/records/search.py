@@ -105,3 +105,34 @@ def hybrid_search(
         cursor.execute(sql, params)
         columns = [col[0] for col in cursor.description]
         return [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+
+def document_search(
+    query_embedding: list[float],
+    limit: int = 6,
+) -> list[dict]:
+    """
+    Pure vector similarity search over DocumentChunks.
+    Returns chunks ordered by cosine distance (nearest first).
+    """
+    sql = """
+    SELECT
+        c.id,
+        c.chunk_index,
+        c.page_number,
+        c.text,
+        c.token_count,
+        sd.document_title,
+        sd.document_type,
+        sd.jurisdiction,
+        1 - (c.embedding <=> %s::vector) AS similarity_score
+    FROM records_documentchunk c
+    JOIN records_supportingdocument sd ON c.supporting_document_id = sd.id
+    WHERE c.embedding IS NOT NULL
+    ORDER BY c.embedding <=> %s::vector ASC
+    LIMIT %s
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, [query_embedding, query_embedding, limit])
+        columns = [col[0] for col in cursor.description]
+        return [dict(zip(columns, row)) for row in cursor.fetchall()]

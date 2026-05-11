@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.core.management import call_command
 
-from apps.records.models import RetentionRecord, SourceDocument, SystemPrompt
+from apps.records.models import DocumentChunk, RetentionRecord, SourceDocument, SupportingDocument, SystemPrompt
 
 
 @admin.register(SystemPrompt)
@@ -45,3 +45,29 @@ class RetentionRecordAdmin(admin.ModelAdmin):
         for record in queryset:
             call_command("generate_embeddings", source_document=record.source_document_id, force=True)
         self.message_user(request, "Embeddings regenerated.")
+
+
+@admin.register(SupportingDocument)
+class SupportingDocumentAdmin(admin.ModelAdmin):
+    list_display = ["filename", "document_title", "document_type", "jurisdiction", "chunk_count", "uploaded_at"]
+    list_filter = ["document_type", "jurisdiction"]
+    readonly_fields = ["chunk_count", "uploaded_at"]
+    actions = ["regenerate_embeddings"]
+
+    @admin.action(description="Regenerate embeddings for selected documents")
+    def regenerate_embeddings(self, request, queryset):
+        for doc in queryset:
+            call_command("generate_document_embeddings", supporting_document=doc.pk, force=True)
+        self.message_user(request, "Embeddings regenerated.")
+
+
+@admin.register(DocumentChunk)
+class DocumentChunkAdmin(admin.ModelAdmin):
+    list_display = ["chunk_index", "supporting_document", "page_number", "token_count", "has_embedding"]
+    list_filter = ["supporting_document"]
+    search_fields = ["text"]
+    readonly_fields = ["has_embedding", "token_count", "chunk_index", "page_number", "created_at", "updated_at"]
+
+    @admin.display(boolean=True, description="Embedded")
+    def has_embedding(self, obj):
+        return obj.embedding is not None

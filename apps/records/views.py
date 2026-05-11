@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import time
@@ -12,7 +13,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 import openai
 from apps.records.prompts import build_messages
-from apps.records.search import hybrid_search
+from apps.records.search import document_search, hybrid_search
 
 logger = logging.getLogger(__name__)
 
@@ -60,21 +61,24 @@ async def rewrite_query(user_message: str, conversation_history: list[dict]) -> 
     return response.choices[0].message.content.strip()
 
 
-async def retrieve(query: str, jurisdiction: str | None = None) -> list[dict]:
-    """Embed the query and run hybrid search."""
+async def embed_query(query: str) -> list[float]:
     client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-    response = await client.embeddings.create(
-        model=settings.EMBEDDING_MODEL,
-        input=query,
-    )
-    query_embedding = response.data[0].embedding
-    records = await sync_to_async(hybrid_search)(
+    response = await client.embeddings.create(model=settings.EMBEDDING_MODEL, input=query)
+    return response.data[0].embedding
+
+
+async def retrieve(query: str, query_embedding: list[float], jurisdiction: str | None = None) -> list[dict]:
+    """Run hybrid search using a pre-computed embedding."""
+    return await sync_to_async(hybrid_search)(
         query_text=query,
         query_embedding=query_embedding,
         jurisdiction=jurisdiction,
         limit=8,
     )
-    return records
+
+
+async def retrieve_documents(query_embedding: list[float]) -> list[dict]:
+    return await sync_to_async(document_search)(query_embedding=query_embedding, limit=6)
 
 
 async def stream_completion(messages: list[dict]):
@@ -147,7 +151,11 @@ class ChatCompletionsView(View):
         if retrieval_query != user_message:
             logger.info("=== QUERY REWRITE === %r → %r", user_message, retrieval_query)
 
-        records = await retrieve(retrieval_query)
+        query_embedding = await embed_query(retrieval_query)
+        records, doc_chunks = await asyncio.gather(
+            retrieve(retrieval_query, query_embedding),
+            retrieve_documents(query_embedding),
+        )
 
         logger.info("=== RETRIEVED RECORDS (%d) ===", len(records))
         logger.info("query: %s", retrieval_query)
@@ -163,8 +171,18 @@ class ChatCompletionsView(View):
                 r.get("minimum_retention_period", ""),
             )
 
+        logger.info("=== RETRIEVED DOCUMENT CHUNKS (%d) ===", len(doc_chunks))
+        for i, c in enumerate(doc_chunks, 1):
+            logger.info(
+                "  [%d] (sim=%.4f) %s — page %s",
+                i,
+                c.get("similarity_score", 0),
+                c.get("document_title", ""),
+                c.get("page_number", ""),
+            )
+
         try:
-            augmented_messages = await build_messages(user_message, records, messages)
+            augmented_messages = await build_messages(user_message, records, doc_chunks, messages)
         except RuntimeError as e:
             return JsonResponse({"error": str(e)}, status=500)
 

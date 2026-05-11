@@ -101,3 +101,44 @@ class RetentionRecord(models.Model):
             parts.append(f"Legal citations: {self.regulatory_citations}")
         parts.append(f"Source: {self.source_document.document_title}, page {self.page_number}")
         return "\n".join(parts)
+
+
+class SupportingDocument(models.Model):
+    filename = models.CharField(max_length=512)
+    document_title = models.CharField(max_length=512)
+    document_type = models.CharField(max_length=100, blank=True)
+    jurisdiction = models.CharField(max_length=255, blank=True)
+    chunk_count = models.IntegerField(default=0)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["document_title"]
+
+    def __str__(self):
+        return self.document_title
+
+
+class DocumentChunk(models.Model):
+    supporting_document = models.ForeignKey(
+        SupportingDocument, on_delete=models.CASCADE, related_name="chunks"
+    )
+    chunk_index = models.IntegerField()
+    page_number = models.IntegerField()
+    text = models.TextField()
+    token_count = models.IntegerField(default=0)
+    embedding = VectorField(dimensions=1536, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["supporting_document", "chunk_index"]
+        indexes = [models.Index(fields=["supporting_document"])]
+
+    def __str__(self):
+        return f"{self.supporting_document} — chunk {self.chunk_index} (page {self.page_number})"
+
+    def to_chunk_text(self) -> str:
+        return (
+            f"Source: {self.supporting_document.document_title}, page {self.page_number}\n"
+            f"{self.text}"
+        )
