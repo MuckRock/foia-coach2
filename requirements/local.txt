@@ -2,6 +2,7 @@
 
 uvicorn[standard]>=0.27
 django-extensions>=3.2
+ipython>=8.0
 
 pytest>=8.0
 pytest-django>=4.8
