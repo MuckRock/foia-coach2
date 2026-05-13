@@ -102,7 +102,7 @@ async def stream_completion(messages: list[dict]):
             "id": completion_id,
             "object": "chat.completion.chunk",
             "created": created,
-            "model": "foia-coach",
+            "model": "agent-moss",
             "choices": [{
                 "index": 0,
                 "delta": {
@@ -210,10 +210,10 @@ class ModelsView(View):
             "object": "list",
             "data": [
                 {
-                    "id": "foia-coach",
+                    "id": "agent-moss",
                     "object": "model",
                     "created": 0,
-                    "owned_by": "foia-coach",
+                    "owned_by": "agent-moss",
                 }
             ],
         })
