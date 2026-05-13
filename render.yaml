@@ -4,7 +4,7 @@ services:
     env: docker
     plan: starter
     region: oregon
-    preDeployCommand: "python manage.py migrate --no-input && python manage.py collectstatic --no-input"
+    preDeployCommand: "bash -c 'python manage.py migrate --no-input && python manage.py collectstatic --no-input'"
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings.production
