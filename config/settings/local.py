@@ -2,6 +2,7 @@ from .base import *  # noqa
 from .base import env
 
 DEBUG = True
+INSTALLED_APPS = INSTALLED_APPS + ["django_extensions"]  # noqa: F405
 SECRET_KEY = env(
     "DJANGO_SECRET_KEY",
     default="local-dev-secret-key-change-in-production",
