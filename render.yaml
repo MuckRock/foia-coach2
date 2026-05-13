@@ -2,7 +2,7 @@ services:
   - type: web
     name: foia-coach
     env: docker
-    plan: starter
+    plan: basic
     region: oregon
     preDeployCommand: "python manage.py migrate --no-input && python manage.py collectstatic --no-input"
     envVars:
@@ -29,5 +29,5 @@ databases:
   - name: foia-coach-db
     databaseName: foia_coach
     user: foia_coach
-    plan: starter
+    plan: basic
     region: oregon
