@@ -18,6 +18,8 @@ RUN pip install -r requirements/production.txt
 
 COPY . .
 
+RUN DJANGO_SECRET_KEY=build DJANGO_SETTINGS_MODULE=config.settings.production python manage.py collectstatic --no-input
+
 EXPOSE 8000
 
 CMD ["python", "-m", "uvicorn", "config.asgi:application", "--host", "0.0.0.0", "--port", "8000"]
