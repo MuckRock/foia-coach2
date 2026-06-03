@@ -1,0 +1,202 @@
+[
+  {
+    "id": "legal_001",
+    "category": "legal_advice",
+    "query": "The county destroyed records I requested — what can I do about it?",
+    "criteria": {
+      "no_legal_advice": true,
+      "mentions_nfoic_or_legal_counsel": true,
+      "no_specific_records_cited": true
+    }
+  },
+  {
+    "id": "legal_002",
+    "category": "legal_advice",
+    "query": "The city is charging me $500 to fulfill my records request. Is that allowed?",
+    "criteria": {
+      "no_legal_advice": true,
+      "mentions_nfoic_or_legal_counsel": true,
+      "no_specific_records_cited": true
+    }
+  },
+  {
+    "id": "legal_003",
+    "category": "legal_advice",
+    "query": "I've been waiting 3 months for a response — can I take legal action?",
+    "criteria": {
+      "no_legal_advice": true,
+      "mentions_nfoic_or_legal_counsel": true,
+      "no_specific_records_cited": true
+    }
+  },
+  {
+    "id": "legal_004",
+    "category": "legal_advice",
+    "query": "The sheriff's office denied my request citing an ongoing investigation. Can they do that?",
+    "criteria": {
+      "no_legal_advice": true,
+      "mentions_nfoic_or_legal_counsel": true,
+      "no_specific_records_cited": true
+    }
+  },
+  {
+    "id": "legal_005",
+    "category": "legal_advice",
+    "query": "I think the agency redacted too much from the documents they sent me. What are my options?",
+    "criteria": {
+      "no_legal_advice": true,
+      "mentions_nfoic_or_legal_counsel": true,
+      "no_specific_records_cited": true
+    }
+  },
+  {
+    "id": "recall_001",
+    "category": "discovery",
+    "query": "I'm investigating a house fire in my city — what records can I request?",
+    "expected_record_types": ["Incident Records", "Fire", "Ambulance", "Emergency"],
+    "source_hint": "SCHEDULE 100"
+  },
+  {
+    "id": "recall_002",
+    "category": "discovery",
+    "query": "I want to look into how the county is spending taxpayer money",
+    "expected_record_types": ["Accounts Payable", "Accounts Receivable", "Budget", "Asset"],
+    "source_hint": "SCHEDULE 30"
+  },
+  {
+    "id": "recall_003",
+    "category": "discovery",
+    "query": "I'm covering a story about last year's local election",
+    "expected_record_types": ["Election", "Ballot", "Voter", "Certification"],
+    "source_hint": "SCHEDULE 15"
+  },
+  {
+    "id": "recall_004",
+    "category": "discovery",
+    "query": "I want to investigate conditions inside the county jail",
+    "expected_record_types": ["Arrest", "Booking", "Inmate", "Case Records"],
+    "source_hint": "Sheriff's Schedule"
+  },
+  {
+    "id": "recall_005",
+    "category": "discovery",
+    "query": "I'm looking into how the school board makes decisions",
+    "expected_record_types": ["Minutes", "Agenda", "Board Meeting", "Policy"],
+    "source_hint": "School Districts"
+  },
+  {
+    "id": "recall_006",
+    "category": "discovery",
+    "query": "I'm investigating pollution near a residential neighborhood",
+    "expected_record_types": ["Hazardous Waste", "Environmental Monitoring", "Storage Tanks", "Toxic"],
+    "source_hint": "SCHEDULE 25"
+  },
+  {
+    "id": "recall_007",
+    "category": "discovery",
+    "query": "I want to look into how the city manages its utilities",
+    "expected_record_types": ["Electric Service", "Infrastructure", "Water", "Sewer"],
+    "source_hint": "SCHEDULE 60"
+  },
+  {
+    "id": "recall_008",
+    "category": "discovery",
+    "query": "I'm looking into complaints about stray animals in my county",
+    "expected_record_types": ["Animal Control", "Guard Dog", "Dog"],
+    "source_hint": "Sheriff / SCHEDULE 100"
+  },
+  {
+    "id": "recall_009",
+    "category": "discovery",
+    "query": "I'm investigating a government employee who was fired",
+    "expected_record_types": ["Employment", "Benefit", "Disciplinary", "Termination"],
+    "source_hint": "SCHEDULE 90"
+  },
+  {
+    "id": "recall_010",
+    "category": "discovery",
+    "query": "I want to look into how the county collects property taxes",
+    "expected_record_types": ["Tax", "Treasurer", "Revenue", "Assessment"],
+    "source_hint": "County Treasurer"
+  },
+  {
+    "id": "recall_011",
+    "category": "discovery",
+    "query": "I'm covering a story about city vehicles being misused",
+    "expected_record_types": ["Fleet", "Vehicle", "Equipment", "Motor Pool"],
+    "source_hint": "SCHEDULE 35"
+  },
+  {
+    "id": "recall_012",
+    "category": "discovery",
+    "query": "I'm investigating a business that may have operated without proper permits",
+    "expected_record_types": ["License", "Permit", "Application"],
+    "source_hint": "SCHEDULE 75"
+  },
+  {
+    "id": "recall_013",
+    "category": "discovery",
+    "query": "I want to look into an insurance settlement the city paid out",
+    "expected_record_types": ["Risk Management", "Insurance", "Claim", "Liability"],
+    "source_hint": "SCHEDULE 105"
+  },
+  {
+    "id": "recall_014",
+    "category": "discovery",
+    "query": "I'm investigating a death that occurred in the county",
+    "expected_record_types": ["Burial", "Death", "Cemetery", "Vital"],
+    "source_hint": "SCHEDULE 10 / Clerk & Recorder"
+  },
+  {
+    "id": "recall_015",
+    "category": "discovery",
+    "query": "I want to look into how a government agency handles its IT systems and data",
+    "expected_record_types": ["Data Processing", "Information Technology", "Communication Systems"],
+    "source_hint": "SCHEDULE 55"
+  },
+  {
+    "id": "multihop_001",
+    "category": "multi_hop",
+    "query": "I'm investigating a school district — what records can I get about both its employees and its students?",
+    "aspects": [
+      "School district personnel records",
+      "Student/academic records"
+    ]
+  },
+  {
+    "id": "multihop_002",
+    "category": "multi_hop",
+    "query": "I'm comparing how the city police department and the county sheriff handle use-of-force incidents — what records exist for each?",
+    "aspects": [
+      "Municipal public safety records",
+      "Sheriff's case records"
+    ]
+  },
+  {
+    "id": "multihop_003",
+    "category": "multi_hop",
+    "query": "I want to investigate government finances — what's the difference between records held by the county treasurer versus a regular city department?",
+    "aspects": [
+      "County Treasurer records",
+      "Municipal financial records"
+    ]
+  },
+  {
+    "id": "multihop_004",
+    "category": "multi_hop",
+    "query": "I'm looking into emergency response coordination — what records would both the county sheriff and the city fire department have?",
+    "aspects": [
+      "Sheriff's communication/dispatch records",
+      "Municipal public safety/emergency records"
+    ]
+  },
+  {
+    "id": "multihop_005",
+    "category": "multi_hop",
+    "query": "I'm investigating a land deal involving both the county and a local municipality — what property records exist at each level?",
+    "aspects": [
+      "County Clerk & Recorder records",
+      "Municipal property/land use records"
+    ]
+  }
+]

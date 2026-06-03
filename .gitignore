@@ -30,3 +30,7 @@ htmlcov/
 .idea/
 .vscode/
 *.swp
+
+# Eval reports
+eval/report*.md
+eval/report*.html
