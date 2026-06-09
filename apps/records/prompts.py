@@ -47,6 +47,7 @@ async def build_messages(
     records: list[dict],
     doc_chunks: list[dict],
     conversation_history: list[dict],
+    state: str | None = None,
 ) -> list[dict]:
     """
     Assemble the full message list to send to the LLM.
@@ -58,7 +59,14 @@ async def build_messages(
     - The latest user message last
     """
     system_prompt = await sync_to_async(SystemPrompt.get_active)()
+    state_instruction = (
+        f"You are answering questions about {state} public records. "
+        f"Begin your response by stating 'Working with {state} data.' on its own line, "
+        "then continue with your answer.\n\n"
+        if state else ""
+    )
     combined_context = (
+        f"{state_instruction}"
         "When citing a source that has a URL, format the document title as a markdown link, "
         "e.g. [Schedule Title](https://...).\n\n"
         "=== RETENTION SCHEDULE RECORDS ===\n"

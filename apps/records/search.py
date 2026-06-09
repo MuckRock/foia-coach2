@@ -110,13 +110,15 @@ def hybrid_search(
 
 def document_search(
     query_embedding: list[float],
+    jurisdiction: str | None = None,
     limit: int = 6,
 ) -> list[dict]:
     """
     Pure vector similarity search over DocumentChunks.
     Returns chunks ordered by cosine distance (nearest first).
     """
-    sql = """
+    jurisdiction_filter = "AND sd.jurisdiction = %s" if jurisdiction else ""
+    sql = f"""
     SELECT
         c.id,
         c.chunk_index,
@@ -131,10 +133,15 @@ def document_search(
     FROM records_documentchunk c
     JOIN records_supportingdocument sd ON c.supporting_document_id = sd.id
     WHERE c.embedding IS NOT NULL
+      {jurisdiction_filter}
     ORDER BY c.embedding <=> %s::vector ASC
     LIMIT %s
     """
+    params = [query_embedding]
+    if jurisdiction:
+        params.append(jurisdiction)
+    params += [query_embedding, limit]
     with connection.cursor() as cursor:
-        cursor.execute(sql, [query_embedding, query_embedding, limit])
+        cursor.execute(sql, params)
         columns = [col[0] for col in cursor.description]
         return [dict(zip(columns, row)) for row in cursor.fetchall()]

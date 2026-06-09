@@ -67,6 +67,42 @@ async def embed_query(query: str) -> list[float]:
     return response.data[0].embedding
 
 
+async def detect_state(user_message: str, conversation_history: list[dict]) -> str | None:
+    """
+    Detect which US state is being discussed in the conversation.
+    Returns the full state name (e.g., 'Colorado') or None if not clearly specified.
+    """
+    recent = conversation_history[-10:]
+    history_text = "\n".join(
+        f"{m['role'].upper()}: {m['content']}"
+        for m in recent
+        if m.get("content")
+    )
+    context = f"Conversation:\n{history_text}\n\nLatest message: {user_message}" if history_text else f"Message: {user_message}"
+
+    client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+    response = await client.chat.completions.create(
+        model=settings.QUERY_REWRITE_MODEL,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a US state detector for a public records retention schedule assistant. "
+                    "Given a conversation, determine which single US state is being discussed. "
+                    "Return ONLY the full state name (e.g., 'Colorado', 'Texas'). "
+                    "If the state is not clearly specified or multiple states are mentioned without a clear focus, return 'UNKNOWN'. "
+                    "Output nothing else."
+                ),
+            },
+            {"role": "user", "content": context},
+        ],
+        temperature=0,
+        max_tokens=20,
+    )
+    result = response.choices[0].message.content.strip()
+    return None if result.upper() == "UNKNOWN" else result
+
+
 async def retrieve(query: str, query_embedding: list[float], jurisdiction: str | None = None) -> list[dict]:
     """Run hybrid search using a pre-computed embedding."""
     return await sync_to_async(hybrid_search)(
@@ -77,8 +113,27 @@ async def retrieve(query: str, query_embedding: list[float], jurisdiction: str |
     )
 
 
-async def retrieve_documents(query_embedding: list[float]) -> list[dict]:
-    return await sync_to_async(document_search)(query_embedding=query_embedding, limit=6)
+async def retrieve_documents(query_embedding: list[float], jurisdiction: str | None = None) -> list[dict]:
+    return await sync_to_async(document_search)(
+        query_embedding=query_embedding,
+        jurisdiction=jurisdiction,
+        limit=6,
+    )
+
+
+async def _clarifying_stream(message: str):
+    """Yield a single SSE chunk with a clarifying message, no LLM call."""
+    completion_id = f"chatcmpl-{uuid.uuid4().hex[:8]}"
+    created = int(time.time())
+    payload = {
+        "id": completion_id,
+        "object": "chat.completion.chunk",
+        "created": created,
+        "model": "agent-moss",
+        "choices": [{"index": 0, "delta": {"role": "assistant", "content": message}, "finish_reason": "stop"}],
+    }
+    yield f"data: {json.dumps(payload)}\n\n"
+    yield "data: [DONE]\n\n"
 
 
 async def stream_completion(messages: list[dict]):
@@ -147,14 +202,36 @@ class ChatCompletionsView(View):
         if not user_message:
             return JsonResponse({"error": "No user message found"}, status=400)
 
+        state = await detect_state(user_message, messages)
+        logger.info("=== STATE DETECTED: %r ===", state)
+
+        if state is None:
+            clarifying = "To provide accurate information, I need to know which state's records you're working with. Which US state are you asking about?"
+            if stream:
+                return StreamingHttpResponse(
+                    _clarifying_stream(clarifying),
+                    content_type="text/event-stream",
+                )
+            return JsonResponse({
+                "id": f"chatcmpl-{uuid.uuid4().hex[:8]}",
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": "agent-moss",
+                "choices": [{
+                    "index": 0,
+                    "message": {"role": "assistant", "content": clarifying},
+                    "finish_reason": "stop",
+                }],
+            })
+
         retrieval_query = await rewrite_query(user_message, messages)
         if retrieval_query != user_message:
             logger.info("=== QUERY REWRITE === %r → %r", user_message, retrieval_query)
 
         query_embedding = await embed_query(retrieval_query)
         records, doc_chunks = await asyncio.gather(
-            retrieve(retrieval_query, query_embedding),
-            retrieve_documents(query_embedding),
+            retrieve(retrieval_query, query_embedding, jurisdiction=state),
+            retrieve_documents(query_embedding, jurisdiction=state),
         )
 
         logger.info("=== RETRIEVED RECORDS (%d) ===", len(records))
@@ -182,7 +259,7 @@ class ChatCompletionsView(View):
             )
 
         try:
-            augmented_messages = await build_messages(user_message, records, doc_chunks, messages)
+            augmented_messages = await build_messages(user_message, records, doc_chunks, messages, state=state)
         except RuntimeError as e:
             return JsonResponse({"error": str(e)}, status=500)
 
