@@ -22,6 +22,7 @@ from ._dc_utils import fetch_pages, get_dc_client, get_project_documents, pages_
 
 
 BATCH_SIZE = 100
+PAGE_BATCH_SIZE = 25  # pages per LLM extraction call
 TITLE_RE = re.compile(r"SCHEDULE NO\.\s+(\S+).*?\(([^)]+)\)", re.IGNORECASE)
 
 EXTRACTION_PROMPT = """\
@@ -113,10 +114,17 @@ class Command(BaseCommand):
 
             self.stdout.write(f"  Fetching '{document.title}'...")
             pages = fetch_pages(document)
-            full_text = pages_to_llm_text(pages)
 
-            self.stdout.write(f"  Extracting records via LLM...")
-            records_data = extract_records_with_llm(openai_client, full_text)
+            self.stdout.write(f"  Extracting records via LLM ({len(pages)} pages in batches of {PAGE_BATCH_SIZE})...")
+            records_data = []
+            for batch_start in range(0, len(pages), PAGE_BATCH_SIZE):
+                batch = pages[batch_start : batch_start + PAGE_BATCH_SIZE]
+                batch_text = pages_to_llm_text(batch)
+                batch_end = min(batch_start + PAGE_BATCH_SIZE, len(pages))
+                self.stdout.write(f"    Pages {batch_start + 1}–{batch_end}...")
+                batch_records = extract_records_with_llm(openai_client, batch_text)
+                records_data.extend(batch_records)
+
             if not records_data:
                 self.stdout.write(self.style.WARNING(f"    No records extracted for '{document.title}'."))
                 continue
