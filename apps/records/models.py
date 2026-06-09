@@ -41,6 +41,9 @@ class SourceDocument(models.Model):
     schedule_number = models.CharField(max_length=50, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     record_count = models.IntegerField(default=0)
+    documentcloud_id = models.CharField(max_length=100, unique=True, null=True, blank=True)
+    documentcloud_url = models.URLField(null=True, blank=True)
+    documentcloud_updated_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["jurisdiction", "document_title"]
@@ -110,6 +113,9 @@ class SupportingDocument(models.Model):
     jurisdiction = models.CharField(max_length=255, blank=True)
     chunk_count = models.IntegerField(default=0)
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    documentcloud_id = models.CharField(max_length=100, unique=True, null=True, blank=True)
+    documentcloud_url = models.URLField(null=True, blank=True)
+    documentcloud_updated_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["document_title"]

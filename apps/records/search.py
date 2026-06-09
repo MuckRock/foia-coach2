@@ -91,6 +91,7 @@ def hybrid_search(
         sd.document_title,
         sd.jurisdiction,
         sd.entity_type,
+        sd.documentcloud_url,
         f.dense_score,
         f.sparse_score,
         f.dense_score + f.sparse_score AS rrf_score
@@ -125,6 +126,7 @@ def document_search(
         sd.document_title,
         sd.document_type,
         sd.jurisdiction,
+        sd.documentcloud_url,
         1 - (c.embedding <=> %s::vector) AS similarity_score
     FROM records_documentchunk c
     JOIN records_supportingdocument sd ON c.supporting_document_id = sd.id

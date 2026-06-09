@@ -8,7 +8,11 @@ def format_retrieved_chunks(chunks: list[dict]) -> str:
         return "No relevant supporting documents were found."
     parts = ["Relevant supporting document excerpts:"]
     for i, c in enumerate(chunks, 1):
-        parts.append(f"\n[{i}] Source: {c['document_title']}, page {c['page_number']}\n{c['text']}")
+        if c.get("documentcloud_url"):
+            source = f"[{c['document_title']}]({c['documentcloud_url']}#document/p{c['page_number']})"
+        else:
+            source = c["document_title"]
+        parts.append(f"\n[{i}] Source: {source}, page {c['page_number']}\n{c['text']}")
     return "\n".join(parts)
 
 
@@ -19,9 +23,13 @@ def format_retrieved_records(records: list[dict]) -> str:
 
     parts = ["Relevant retention schedule entries:"]
     for i, r in enumerate(records, 1):
+        if r.get("documentcloud_url"):
+            source = f"[{r['document_title']}]({r['documentcloud_url']}#document/p{r['page_number']})"
+        else:
+            source = r["document_title"]
         entry = [
             f"\n[{i}] {r['record_title']} (Record {r['record_number']})",
-            f"Source: {r['document_title']}, page {r['page_number']}",
+            f"Source: {source}, page {r['page_number']}",
             f"Description: {r['record_description']}",
             f"Retention period: {r['minimum_retention_period']}",
         ]
@@ -51,6 +59,8 @@ async def build_messages(
     """
     system_prompt = await sync_to_async(SystemPrompt.get_active)()
     combined_context = (
+        "When citing a source that has a URL, format the document title as a markdown link, "
+        "e.g. [Schedule Title](https://...).\n\n"
         "=== RETENTION SCHEDULE RECORDS ===\n"
         f"{format_retrieved_records(records)}\n\n"
         "=== SUPPORTING DOCUMENTS ===\n"

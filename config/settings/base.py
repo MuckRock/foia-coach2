@@ -128,6 +128,8 @@ SECRET_KEY = env("DJANGO_SECRET_KEY", default="!!!SET DJANGO_SECRET_KEY!!!")
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["*"])
 
 # FOIA Coach settings
+DOCUMENTCLOUD_USERNAME = env("DOCUMENTCLOUD_USERNAME", default="")
+DOCUMENTCLOUD_PASSWORD = env("DOCUMENTCLOUD_PASSWORD", default="")
 LLM_MODEL = env("LLM_MODEL", default="gpt-5.2")
 QUERY_REWRITE_MODEL = env("QUERY_REWRITE_MODEL", default="gpt-4o-mini")
 EMBEDDING_MODEL = env("EMBEDDING_MODEL", default="text-embedding-3-small")
