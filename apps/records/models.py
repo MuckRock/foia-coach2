@@ -124,6 +124,24 @@ class SupportingDocument(models.Model):
         return self.document_title
 
 
+class NFOICChapter(models.Model):
+    """Contact information for an NFOIC chapter serving a particular jurisdiction."""
+    name = models.CharField(max_length=255)
+    jurisdiction = models.CharField(max_length=255)
+    website = models.URLField(blank=True)
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=50, blank=True)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["jurisdiction", "name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.jurisdiction})"
+
+
 class DocumentChunk(models.Model):
     supporting_document = models.ForeignKey(
         SupportingDocument, on_delete=models.CASCADE, related_name="chunks"

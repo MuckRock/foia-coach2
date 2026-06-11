@@ -1,6 +1,6 @@
 from asgiref.sync import sync_to_async
 
-from apps.records.models import SystemPrompt
+from apps.records.models import NFOICChapter, SystemPrompt
 
 
 def format_retrieved_chunks(chunks: list[dict]) -> str:
@@ -59,12 +59,35 @@ async def build_messages(
     - The latest user message last
     """
     system_prompt = await sync_to_async(SystemPrompt.get_active)()
+
+    chapter = None
+    if state:
+        chapter = await sync_to_async(
+            NFOICChapter.objects.filter(jurisdiction=state).first
+        )()
+
     state_instruction = (
         f"You are answering questions about {state} public records. "
         f"Begin your response by stating 'Working with {state} data.' on its own line, "
         "then continue with your answer.\n\n"
         if state else ""
     )
+
+    if chapter:
+        chapter_lines = [f"=== {state.upper()} NFOIC CHAPTER (legal referral contact) ==="]
+        chapter_lines.append(f"Organization: {chapter.name}")
+        if chapter.website:
+            chapter_lines.append(f"Website: {chapter.website}")
+        if chapter.email:
+            chapter_lines.append(f"Email: {chapter.email}")
+        if chapter.phone:
+            chapter_lines.append(f"Phone: {chapter.phone}")
+        if chapter.description:
+            chapter_lines.append(f"About: {chapter.description}")
+        chapter_section = "\n".join(chapter_lines)
+    else:
+        chapter_section = ""
+
     combined_context = (
         f"{state_instruction}"
         "When citing a source that has a URL, format the document title as a markdown link, "
@@ -73,6 +96,7 @@ async def build_messages(
         f"{format_retrieved_records(records)}\n\n"
         "=== SUPPORTING DOCUMENTS ===\n"
         f"{format_retrieved_chunks(doc_chunks)}"
+        + (f"\n\n{chapter_section}" if chapter_section else "")
     )
 
     prior_history = [

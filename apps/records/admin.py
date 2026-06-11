@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.core.management import call_command
 
-from apps.records.models import (DocumentChunk, RetentionRecord,
+from apps.records.models import (DocumentChunk, NFOICChapter, RetentionRecord,
                                  SourceDocument, SupportingDocument,
                                  SystemPrompt)
 
@@ -12,6 +12,14 @@ class SystemPromptAdmin(admin.ModelAdmin):
     list_filter = ["is_active"]
     readonly_fields = ["created_at", "updated_at"]
     fields = ["name", "content", "is_active", "created_at", "updated_at"]
+
+
+@admin.register(NFOICChapter)
+class NFOICChapterAdmin(admin.ModelAdmin):
+    list_display = ["name", "jurisdiction", "website", "email", "phone"]
+    list_filter = ["jurisdiction"]
+    search_fields = ["name", "jurisdiction", "description"]
+    readonly_fields = ["created_at", "updated_at"]
 
 
 @admin.register(SourceDocument)
