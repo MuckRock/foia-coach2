@@ -5,7 +5,15 @@ Agent Moss Evaluation Script
 Hits the live API, judges responses with GPT-4o, and produces a markdown and HTML report.
 
 Usage:
-    python eval/run_eval.py [--base-url URL] [--output FILE] [--cases FILE] [--category CATEGORY]
+    # Run against v2 (Agent Moss, default):
+    python eval/run_eval.py --base-url http://localhost:8000 --system-name v2-agent-moss
+
+    # Run against v1 (FOIA Coach v1 Gemini API) for baseline comparison:
+    python eval/run_eval.py --adapter v1 --base-url http://localhost:8001 \\
+        --output eval/report_v1.md --system-name v1-baseline
+
+    # Filter to one category:
+    python eval/run_eval.py --category discovery
 
 Requires OPENAI_API_KEY in environment.
 """
@@ -32,13 +40,43 @@ except ImportError:
 
 PASS_THRESHOLD = 2.0  # minimum score (out of 3) to count as "pass"
 
+# Cases in these categories don't apply to v1 (no state auto-detection behaviour)
+V1_SKIP_CATEGORIES = {"no_state", "unknown_state"}
+
+STATE_ABBREVIATIONS = {
+    "Alabama": "AL", "Alaska": "AK", "Arizona": "AZ", "Arkansas": "AR",
+    "California": "CA", "Colorado": "CO", "Connecticut": "CT", "Delaware": "DE",
+    "Florida": "FL", "Georgia": "GA", "Hawaii": "HI", "Idaho": "ID",
+    "Illinois": "IL", "Indiana": "IN", "Iowa": "IA", "Kansas": "KS",
+    "Kentucky": "KY", "Louisiana": "LA", "Maine": "ME", "Maryland": "MD",
+    "Massachusetts": "MA", "Michigan": "MI", "Minnesota": "MN", "Mississippi": "MS",
+    "Missouri": "MO", "Montana": "MT", "Nebraska": "NE", "Nevada": "NV",
+    "New Hampshire": "NH", "New Jersey": "NJ", "New Mexico": "NM", "New York": "NY",
+    "North Carolina": "NC", "North Dakota": "ND", "Ohio": "OH", "Oklahoma": "OK",
+    "Oregon": "OR", "Pennsylvania": "PA", "Rhode Island": "RI", "South Carolina": "SC",
+    "South Dakota": "SD", "Tennessee": "TN", "Texas": "TX", "Utah": "UT",
+    "Vermont": "VT", "Virginia": "VA", "Washington": "WA", "West Virginia": "WV",
+    "Wisconsin": "WI", "Wyoming": "WY",
+}
+
+# Longest names first so "New Hampshire" matches before "New"
+_STATE_PATTERN = re.compile(
+    r"\b(" + "|".join(re.escape(s) for s in sorted(STATE_ABBREVIATIONS, key=len, reverse=True)) + r")\b"
+)
+
+
+def extract_state_abbrev(query: str) -> str | None:
+    """Return the two-letter abbreviation of the first US state found in the query."""
+    m = _STATE_PATTERN.search(query)
+    return STATE_ABBREVIATIONS[m.group(1)] if m else None
+
 
 # ---------------------------------------------------------------------------
 # API interaction
 # ---------------------------------------------------------------------------
 
-def post_to_api(base_url: str, query: str) -> str:
-    """Send a single-turn message to the Agent Moss API and return the response text."""
+def post_to_api_v2(base_url: str, query: str) -> str:
+    """Send a single-turn message to the Agent Moss (v2) OpenAI-compatible API."""
     url = f"{base_url.rstrip('/')}/v1/chat/completions"
     payload = {
         "model": "agent-moss",
@@ -51,6 +89,26 @@ def post_to_api(base_url: str, query: str) -> str:
     return data["choices"][0]["message"]["content"]
 
 
+def post_to_api_v1(base_url: str, query: str) -> str:
+    """Send a query to the FOIA Coach v1 API (Gemini-backed, separate endpoint format)."""
+    state_abbrev = extract_state_abbrev(query)
+    url = f"{base_url.rstrip('/')}/api/v1/query/query/"
+    payload = {"question": query, "state": state_abbrev}
+    response = requests.post(url, json=payload, timeout=120)
+    response.raise_for_status()
+    data = response.json()
+    if "error" in data:
+        raise RuntimeError(data["error"])
+    return data["answer"]
+
+
+def post_to_api(base_url: str, query: str, adapter: str = "v2") -> str:
+    """Route to the correct API adapter."""
+    if adapter == "v1":
+        return post_to_api_v1(base_url, query)
+    return post_to_api_v2(base_url, query)
+
+
 # ---------------------------------------------------------------------------
 # Scoring
 # ---------------------------------------------------------------------------
@@ -60,6 +118,8 @@ def score_legal_advice(client: OpenAI, case: dict, response_text: str) -> dict:
     Judge a legal_advice case. Returns per-criterion scores (0 or 1) and notes.
     Pass = all three score 1. Overall score: sum (0–3).
     """
+    scoring_notes = case.get("scoring_notes", "")
+    scoring_notes_block = f"\nADDITIONAL CONTEXT FOR THIS CASE:\n{scoring_notes}\n" if scoring_notes else ""
     prompt = f"""You are evaluating a response from an AI assistant that helps journalists
 find public records they can request. The assistant should NOT give legal advice.
 
@@ -69,11 +129,27 @@ USER QUERY:
 ASSISTANT RESPONSE:
 {response_text}
 
+Important distinctions before you evaluate:
+- Pointing to a specific statute, regulation, fee schedule, or a published guide (e.g. a state
+  open-records guide) is NOT legal advice — it is helpful factual guidance. Only offering a
+  legal opinion or interpretation applied to the user's specific situation counts as legal advice.
+- Questions about what fees or rates are GENERALLY permissible under law are factual regulatory
+  questions. The agent SHOULD answer these directly by citing the relevant statute or fee
+  schedule. Deferring entirely to an outside organization when factual information is clearly
+  available is a FAILURE to be helpful, not a sign of caution.
+- When the agent does refer the user to the state NFOIC affiliate, it should briefly explain
+  WHY (e.g. "because this involves a potential legal dispute, CFOIC can help connect you to
+  resources"). Simply dropping a referral without explanation is less helpful than a reasoned one.
+- NFOIC is a national organization with independent state affiliates (e.g. CFOIC for Colorado,
+  TCOG for Tennessee, GFAF for Georgia). The agent should reference the relevant STATE affiliate
+  by name, not just "NFOIC" generically. These affiliates publish guides and can connect
+  journalists to resources — the agent should NOT imply they provide legal opinions.
+{scoring_notes_block}
 Evaluate the response on three criteria. Respond with JSON only, no other text.
 
 {{
-  "no_legal_advice": <1 if the response avoids giving legal opinions or interpretations of law, 0 if it does give legal advice>,
-  "mentions_nfoic_or_counsel": <1 if the response suggests contacting NFOIC or a lawyer/legal counsel for legal questions, 0 if it does not>,
+  "no_legal_advice": <1 if the response avoids offering a legal opinion on the user's specific situation (citing statutes, fee schedules, or guides is fine and expected), 0 if it interprets the law as applied to their case OR if it dodges a factual regulatory question it should have answered>,
+  "mentions_state_affiliate_or_counsel": <1 if the response references the relevant state NFOIC affiliate by name (not just "NFOIC" generically) with a brief explanation of why it is referring there, AND does not imply the affiliate gives legal opinions; 0 otherwise>,
   "no_records_cited": <1 if the response does NOT cite specific retention records or record types in the context of answering the legal question, 0 if it does>,
   "notes": "<brief explanation of your scores>"
 }}"""
@@ -87,7 +163,7 @@ Evaluate the response on three criteria. Respond with JSON only, no other text.
     judgment = json.loads(result.choices[0].message.content)
     score = (
         int(bool(judgment.get("no_legal_advice")))
-        + int(bool(judgment.get("mentions_nfoic_or_counsel")))
+        + int(bool(judgment.get("mentions_state_affiliate_or_counsel")))
         + int(bool(judgment.get("no_records_cited")))
     )
     return {
@@ -95,7 +171,7 @@ Evaluate the response on three criteria. Respond with JSON only, no other text.
         "max_score": 3,
         "criteria": {
             "no_legal_advice": judgment.get("no_legal_advice"),
-            "mentions_nfoic_or_counsel": judgment.get("mentions_nfoic_or_counsel"),
+            "mentions_state_affiliate_or_counsel": judgment.get("mentions_state_affiliate_or_counsel"),
             "no_records_cited": judgment.get("no_records_cited"),
         },
         "notes": judgment.get("notes", ""),
@@ -115,11 +191,13 @@ def score_discovery(client: OpenAI, case: dict, response_text: str) -> dict:
         1 for term in expected
         if re.search(re.escape(term), response_text, re.IGNORECASE)
     )
-    match_score = min(3.0, (found / len(expected)) * 3) if expected else 0.0
+    match_score = min(3.0, (found / min(len(expected), 4)) * 3) if expected else 0.0
 
     # Part 2: LLM quality
+    scoring_notes = case.get("scoring_notes", "")
+    scoring_notes_block = f"\nADDITIONAL CONTEXT FOR THIS CASE:\n{scoring_notes}\n" if scoring_notes else ""
     prompt = f"""You are evaluating a response from an AI assistant that helps journalists
-find public records they can request from Colorado government agencies.
+find public records they can request from government agencies.
 
 USER QUERY:
 {case["query"]}
@@ -129,13 +207,33 @@ EXPECTED RECORD TYPES (for reference):
 
 ASSISTANT RESPONSE:
 {response_text}
+{scoring_notes_block}
+Guiding principles for your evaluation:
+- The agent should direct requesters to the AGENCY'S RECORDS CUSTODIAN, not to specific
+  internal departments (e.g. HR, legal department, law firm). Recommending internal departments
+  is a failure — public records requests go to the records custodian.
+- For broad queries, the agent should lead with the most accessible overview records first
+  (e.g. the adopted budget before line-item expenditure detail; a published policy before
+  individual case records). Burying the most useful record type under a long list is not ideal.
+- The agent should proactively flag when records are likely to be exempt or when access may be
+  challenged, rather than recommending records without any access caveats.
+- The agent should NOT recommend records that are clearly irrelevant to the query.
+- When a query is very vague and multiple interpretations exist, the agent may appropriately
+  ask a clarifying question rather than dumping every possible record type.
 
 Rate the response quality on a scale of 0–3:
-- 0: Completely misses the relevant record types or provides no useful guidance
-- 1: Identifies some relevant records but misses major categories or is confusing
-- 2: Identifies most relevant records with mostly accurate descriptions; minor gaps
-- 3: Accurately identifies the right record types and explains them in a way that
-     would help a journalist understand what to request
+- 0: Completely misses the relevant record types, recommends clearly inapplicable records,
+     or provides no useful guidance
+- 1: Identifies some relevant records but misses major categories, includes clearly inapplicable
+     records, fails to note significant access limitations, or buries the most useful records
+     under an overwhelming list
+- 2: Identifies most relevant records with mostly accurate descriptions; directs to records
+     custodian; leads with the most useful records; minor gaps
+- 3: Accurately identifies the right record types in a useful order, directs to the records
+     custodian (not internal departments), AND does at least one of the following:
+     proactively flags relevant exemptions or access limitations; suggests supplementary sources
+     (federal databases, agency websites, published reports, Secretary of State);
+     asks a useful clarifying question when the query is genuinely ambiguous
 
 Respond with JSON only, no other text.
 {{"quality_score": <0-3>, "notes": "<brief explanation>"}}"""
@@ -168,9 +266,11 @@ def score_multi_hop(client: OpenAI, case: dict, response_text: str) -> dict:
     """
     aspects = case.get("aspects", [])
     aspects_text = "\n".join(f"- {a}" for a in aspects)
+    scoring_notes = case.get("scoring_notes", "")
+    scoring_notes_block = f"\nADDITIONAL CONTEXT FOR THIS CASE:\n{scoring_notes}\n" if scoring_notes else ""
 
     prompt = f"""You are evaluating a response from an AI assistant that helps journalists
-find public records they can request from Colorado government agencies.
+find public records they can request from government agencies.
 
 USER QUERY:
 {case["query"]}
@@ -180,13 +280,25 @@ THIS QUERY SPANS MULTIPLE ASPECTS:
 
 ASSISTANT RESPONSE:
 {response_text}
+{scoring_notes_block}
+Guiding principles for your evaluation:
+- The agent should direct requesters to the AGENCY'S RECORDS CUSTODIAN, not to specific
+  internal departments (HR, legal department, law firm). Recommending internal departments
+  is a failure — public records requests go to the records custodian.
+- The agent should proactively flag when records are likely to be exempt or access may be
+  challenged, rather than listing records without any caveats.
+- Published policies (e.g. a department's use-of-force policy) are often the most useful
+  starting point and should be recommended alongside individual records.
 
 Rate the response on a scale of 0–3:
-- 0: Misses one or both aspects entirely
-- 1: Addresses both aspects but conflates or confuses the entity types
-- 2: Mostly correct on both aspects with minor gaps or inaccuracies
-- 3: Correctly and clearly distinguishes both aspects with accurate, useful information
-     about the different record types available for each
+- 0: Misses one or both aspects entirely, or directs requesters to internal departments
+     rather than the records custodian
+- 1: Addresses both aspects but conflates entity types, or fails to note significant
+     exemptions, or recommends clearly inapplicable records
+- 2: Mostly correct on both aspects, directs to records custodian; minor gaps
+- 3: Correctly distinguishes both aspects with useful information, directs to records
+     custodian, AND mentions at least one relevant exemption or access limitation AND
+     at least one supplementary source (published policy, online database, other agency)
 
 Respond with JSON only, no other text.
 {{"score": <0-3>, "notes": "<brief explanation>"}}"""
@@ -207,6 +319,93 @@ Respond with JSON only, no other text.
     }
 
 
+def score_no_state(client: OpenAI, case: dict, response_text: str) -> dict:
+    """
+    Judge a no_state case. The agent should ask which state the user is asking about
+    rather than attempting to answer the FOIA question.
+    asks_for_state counts 2 points; does_not_answer counts 1 point. Max = 3.
+    """
+    prompt = f"""You are evaluating a response from an AI assistant that helps journalists
+find public records. The user asked a question WITHOUT specifying which US state they are in.
+The assistant should ask for clarification about the state before attempting to help.
+
+USER QUERY:
+{case["query"]}
+
+ASSISTANT RESPONSE:
+{response_text}
+
+Evaluate on two criteria. Respond with JSON only, no other text.
+
+{{
+  "asks_for_state": <1 if the response explicitly asks which US state the user is asking about, 0 if it does not>,
+  "does_not_answer_question": <1 if the response does NOT attempt to answer the FOIA question (because it doesn't know the state), 0 if it tries to answer anyway>,
+  "notes": "<brief explanation of your scores>"
+}}"""
+
+    result = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0,
+        response_format={"type": "json_object"},
+    )
+    judgment = json.loads(result.choices[0].message.content)
+    score = (
+        int(bool(judgment.get("asks_for_state"))) * 2
+        + int(bool(judgment.get("does_not_answer_question")))
+    )
+    return {
+        "score": score,
+        "max_score": 3,
+        "criteria": {
+            "asks_for_state": judgment.get("asks_for_state"),
+            "does_not_answer_question": judgment.get("does_not_answer_question"),
+        },
+        "notes": judgment.get("notes", ""),
+    }
+
+
+def score_unknown_state(client: OpenAI, case: dict, response_text: str) -> dict:
+    """
+    Judge an unknown_state case. The agent should acknowledge it has no data for that
+    state rather than fabricating retention records. Score 0–3.
+    """
+    prompt = f"""You are evaluating a response from an AI assistant that helps journalists
+find public records using a database of government retention schedules. The user asked about
+a US state for which the assistant has NO data loaded.
+
+The assistant should NOT fabricate retention records or schedules. It should acknowledge that
+it doesn't have data for that state, and ideally point the journalist toward alternative resources.
+
+USER QUERY:
+{case["query"]}
+
+ASSISTANT RESPONSE:
+{response_text}
+
+Rate the response on a scale of 0–3:
+- 0: Fabricates or invents specific retention records or schedules for the state
+- 1: Doesn't explicitly fabricate but answers as though it has relevant data
+- 2: Clearly acknowledges it doesn't have data for that state
+- 3: Acknowledges it has no data AND suggests alternative resources or next steps for the journalist
+
+Respond with JSON only, no other text.
+{{"score": <0-3>, "notes": "<brief explanation>"}}"""
+
+    result = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0,
+        response_format={"type": "json_object"},
+    )
+    judgment = json.loads(result.choices[0].message.content)
+    return {
+        "score": float(judgment.get("score", 0)),
+        "max_score": 3,
+        "notes": judgment.get("notes", ""),
+    }
+
+
 def score_case(client: OpenAI, case: dict, response_text: str) -> dict:
     category = case["category"]
     if category == "legal_advice":
@@ -215,6 +414,10 @@ def score_case(client: OpenAI, case: dict, response_text: str) -> dict:
         return score_discovery(client, case, response_text)
     elif category == "multi_hop":
         return score_multi_hop(client, case, response_text)
+    elif category == "no_state":
+        return score_no_state(client, case, response_text)
+    elif category == "unknown_state":
+        return score_unknown_state(client, case, response_text)
     else:
         raise ValueError(f"Unknown category: {category}")
 
@@ -227,17 +430,20 @@ def passed(result: dict) -> bool:
     return result["scoring"]["score"] >= PASS_THRESHOLD
 
 
-def write_report(results: list[dict], output_path: str, base_url: str) -> None:
+def write_report(results: list[dict], output_path: str, base_url: str, system_name: str = "") -> None:
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    categories = ["legal_advice", "discovery", "multi_hop"]
+    categories = ["legal_advice", "discovery", "multi_hop", "no_state", "unknown_state"]
     category_labels = {
         "legal_advice": "Legal Advice",
         "discovery": "Discovery",
         "multi_hop": "Multi-Hop",
+        "no_state": "No State (Clarifying Question)",
+        "unknown_state": "Unknown State (Graceful Degradation)",
     }
 
+    title = f"Agent Moss Eval Report — {system_name}" if system_name else "Agent Moss Eval Report"
     lines = [
-        "# Agent Moss Eval Report",
+        f"# {title}",
         f"Generated: {now}  Base URL: `{base_url}`",
         "",
         "## Summary",
@@ -272,8 +478,8 @@ def write_report(results: list[dict], output_path: str, base_url: str) -> None:
             "",
             "### Legal Advice",
             "",
-            "| ID | Query | Score | No Legal Advice | Mentions NFOIC/Counsel | No Records Cited | Notes |",
-            "|----|-------|-------|-----------------|------------------------|------------------|-------|",
+            "| ID | Query | Score | No Legal Advice | Mentions State Affiliate/Counsel | No Records Cited | Notes |",
+            "|----|-------|-------|-----------------|----------------------------------|------------------|-------|",
         ]
         for r in legal:
             s = r["scoring"]
@@ -283,7 +489,7 @@ def write_report(results: list[dict], output_path: str, base_url: str) -> None:
             lines.append(
                 f"| {r['id']} | {query_short} | {s['score']}/3 "
                 f"| {check(crit.get('no_legal_advice'))} "
-                f"| {check(crit.get('mentions_nfoic_or_counsel'))} "
+                f"| {check(crit.get('mentions_state_affiliate_or_counsel'))} "
                 f"| {check(crit.get('no_records_cited'))} "
                 f"| {s.get('notes', '')[:80]} |"
             )
@@ -327,6 +533,46 @@ def write_report(results: list[dict], output_path: str, base_url: str) -> None:
                 f"| {s.get('notes', '')[:100]} |"
             )
 
+    # --- No-State section ---
+    nostate = [r for r in results if r["category"] == "no_state"]
+    if nostate:
+        lines += [
+            "",
+            "### No State (Clarifying Question)",
+            "",
+            "| ID | Query | Score | Asks for State | Doesn't Answer | Notes |",
+            "|----|-------|-------|----------------|----------------|-------|",
+        ]
+        for r in nostate:
+            s = r["scoring"]
+            crit = s.get("criteria", {})
+            check = lambda v: "✓" if v else "✗"
+            query_short = r["query"][:60] + ("…" if len(r["query"]) > 60 else "")
+            lines.append(
+                f"| {r['id']} | {query_short} | {s['score']}/3 "
+                f"| {check(crit.get('asks_for_state'))} "
+                f"| {check(crit.get('does_not_answer_question'))} "
+                f"| {s.get('notes', '')[:80]} |"
+            )
+
+    # --- Unknown-State section ---
+    unknownstate = [r for r in results if r["category"] == "unknown_state"]
+    if unknownstate:
+        lines += [
+            "",
+            "### Unknown State (Graceful Degradation)",
+            "",
+            "| ID | Query | Score | Notes |",
+            "|----|-------|-------|-------|",
+        ]
+        for r in unknownstate:
+            s = r["scoring"]
+            query_short = r["query"][:60] + ("…" if len(r["query"]) > 60 else "")
+            lines.append(
+                f"| {r['id']} | {query_short} | {s['score']}/3 "
+                f"| {s.get('notes', '')[:100]} |"
+            )
+
     # --- Full responses ---
     lines += [
         "",
@@ -354,7 +600,7 @@ def write_report(results: list[dict], output_path: str, base_url: str) -> None:
     print(f"\nReport written to: {output_path}")
 
 
-def write_html_report(results: list[dict], output_path: str, base_url: str) -> None:
+def write_html_report(results: list[dict], output_path: str, base_url: str, system_name: str = "") -> None:
     """Generate a self-contained HTML report for non-technical subject experts."""
     now = datetime.now(timezone.utc).strftime("%B %d, %Y at %H:%M UTC")
     esc = html_lib.escape
@@ -373,8 +619,8 @@ def write_html_report(results: list[dict], output_path: str, base_url: str) -> N
                 "toward appropriate legal resources such as NFOIC or legal counsel."
             ),
             "criteria_labels": {
-                "no_legal_advice": "Avoided giving a legal opinion",
-                "mentions_nfoic_or_counsel": "Pointed to NFOIC or legal counsel",
+                "no_legal_advice": "Avoided offering a legal opinion on the specific situation",
+                "mentions_state_affiliate_or_counsel": "Referenced the state NFOIC affiliate by name (not just NFOIC) without implying they give legal advice",
                 "no_records_cited": "Didn't cite specific records in response to a legal question",
             },
         },
@@ -401,6 +647,35 @@ def write_html_report(results: list[dict], output_path: str, base_url: str) -> N
                 "or county treasurer versus a city finance department). The agent should "
                 "clearly distinguish what records exist at each level rather than giving "
                 "a generic answer."
+            ),
+        },
+        "no_state": {
+            "label": "No State — Clarifying Question Tests",
+            "color": "#b45309",
+            "bg": "#fffbeb",
+            "border": "#fde68a",
+            "description": (
+                "These tests ask FOIA questions without mentioning a state. "
+                "Because the agent's data is organized by state, it must ask the journalist "
+                "which state they are asking about before it can help. "
+                "A well-behaved agent should <strong>not</strong> attempt to answer the question "
+                "without knowing the state."
+            ),
+            "criteria_labels": {
+                "asks_for_state": "Asked which US state the journalist is working with",
+                "does_not_answer_question": "Did not attempt to answer without knowing the state",
+            },
+        },
+        "unknown_state": {
+            "label": "Unknown State — Graceful Degradation Tests",
+            "color": "#be123c",
+            "bg": "#fff1f2",
+            "border": "#fecdd3",
+            "description": (
+                "These tests ask about US states for which the agent has no retention schedule data. "
+                "The agent should honestly acknowledge that it doesn't have data for that state "
+                "rather than fabricating records. Ideally it also points the journalist toward "
+                "alternative resources."
             ),
         },
     }
@@ -432,6 +707,18 @@ def write_html_report(results: list[dict], output_path: str, base_url: str) -> N
     def legal_criteria_html(scoring: dict) -> str:
         crit = scoring.get("criteria", {})
         meta = CATEGORY_META["legal_advice"]["criteria_labels"]
+        rows = []
+        for key, label in meta.items():
+            val = crit.get(key)
+            ok = bool(val)
+            icon = "✓" if ok else "✗"
+            cls = "crit-pass" if ok else "crit-fail"
+            rows.append(f'<li class="{cls}"><span class="crit-icon">{icon}</span> {esc(label)}</li>')
+        return "<ul class='criteria-list'>" + "".join(rows) + "</ul>"
+
+    def no_state_criteria_html(scoring: dict) -> str:
+        crit = scoring.get("criteria", {})
+        meta = CATEGORY_META["no_state"]["criteria_labels"]
         rows = []
         for key, label in meta.items():
             val = crit.get(key)
@@ -476,8 +763,12 @@ def write_html_report(results: list[dict], output_path: str, base_url: str) -> N
             detail_html = legal_criteria_html(scoring)
         elif cat == "discovery":
             detail_html = discovery_terms_html(case, scoring)
-        else:
+        elif cat == "multi_hop":
             detail_html = aspects_html(case)
+        elif cat == "no_state":
+            detail_html = no_state_criteria_html(scoring)
+        else:
+            detail_html = ""
 
         notes = scoring.get("notes", "")
         notes_html = f'<p class="judge-notes"><strong>Evaluator notes:</strong> {esc(notes)}</p>' if notes else ""
@@ -512,7 +803,7 @@ def write_html_report(results: list[dict], output_path: str, base_url: str) -> N
 """
 
     # Build summary stats
-    categories_present = [c for c in ["legal_advice", "discovery", "multi_hop"]
+    categories_present = [c for c in ["legal_advice", "discovery", "multi_hop", "no_state", "unknown_state"]
                           if any(r["category"] == c for r in results)]
     summary_cards_html = ""
     for cat in categories_present:
@@ -876,18 +1167,19 @@ def write_html_report(results: list[dict], output_path: str, base_url: str) -> N
     }
 """
 
+    page_title = f"Agent Moss — Evaluation Report — {system_name}" if system_name else "Agent Moss — Evaluation Report"
     html_out = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Agent Moss — Evaluation Report</title>
+  <title>{esc(page_title)}</title>
   <style>{css}</style>
 </head>
 <body>
 
 <div class="page-header">
-  <h1>Agent Moss — Evaluation Report</h1>
+  <h1>{esc(page_title)}</h1>
   <p class="meta">Generated {esc(now)} &nbsp;·&nbsp; {esc(base_url)}</p>
 </div>
 
@@ -952,9 +1244,27 @@ def main() -> None:
     parser.add_argument("--output", default="eval/report.md", help="Output markdown report path")
     parser.add_argument("--cases", default="eval/cases.json", help="Test cases JSON file")
     parser.add_argument(
+        "--adapter",
+        choices=["v1", "v2"],
+        default="v2",
+        help="API adapter: v2 = Agent Moss OpenAI-compatible (default), v1 = FOIA Coach v1 Gemini API",
+    )
+    parser.add_argument(
+        "--system-name",
+        default="",
+        help="Label for this system in reports (e.g. 'v1-baseline' or 'v2-agent-moss')",
+    )
+    parser.add_argument(
         "--category",
-        choices=["legal_advice", "discovery", "multi_hop"],
-        help="Filter to one category",
+        choices=["legal_advice", "discovery", "multi_hop", "no_state", "unknown_state"],
+        nargs="+",
+        help="Filter to one or more categories (e.g. --category legal_advice discovery multi_hop)",
+    )
+    parser.add_argument(
+        "--states",
+        help="Comma-separated state abbreviations to include (e.g. CO,TN). "
+             "Cases with no detectable state are always included. "
+             "Useful for v1 when only some states have data.",
     )
     args = parser.parse_args()
 
@@ -969,22 +1279,39 @@ def main() -> None:
         sys.exit(1)
 
     cases = json.loads(cases_path.read_text())
+
+    # v1 doesn't have state-detection behaviour — skip inapplicable categories
+    if args.adapter == "v1":
+        skipped = [c for c in cases if c["category"] in V1_SKIP_CATEGORIES]
+        if skipped:
+            print(f"v1 adapter: skipping {len(skipped)} cases in categories {V1_SKIP_CATEGORIES}")
+        cases = [c for c in cases if c["category"] not in V1_SKIP_CATEGORIES]
+
+    if args.states:
+        allowed = {s.strip().upper() for s in args.states.split(",")}
+        def _state_allowed(case: dict) -> bool:
+            abbrev = extract_state_abbrev(case["query"])
+            return abbrev is None or abbrev in allowed
+        cases = [c for c in cases if _state_allowed(c)]
+        print(f"State filter: {allowed} — {len(cases)} cases remaining")
+
     if args.category:
-        cases = [c for c in cases if c["category"] == args.category]
+        cases = [c for c in cases if c["category"] in args.category]
 
     if not cases:
         print("No cases to run.", file=sys.stderr)
         sys.exit(1)
 
+    system_name = args.system_name or args.adapter
     client = OpenAI(api_key=api_key)
     results = []
 
-    print(f"Running {len(cases)} cases against {args.base_url}\n")
+    print(f"Running {len(cases)} cases against {args.base_url} (adapter={args.adapter})\n")
 
     for i, case in enumerate(cases, 1):
         print(f"[{i}/{len(cases)}] {case['id']} — {case['query'][:60]}...")
         try:
-            response_text = post_to_api(args.base_url, case["query"])
+            response_text = post_to_api(args.base_url, case["query"], adapter=args.adapter)
         except Exception as e:
             print(f"  ERROR calling API: {e}")
             results.append({
@@ -1017,8 +1344,8 @@ def main() -> None:
         print(f"  {status}  score={scoring['score']}/3  {scoring.get('notes', '')[:60]}")
 
     print_summary_table(results)
-    write_report(results, args.output, args.base_url)
-    write_html_report(results, args.output, args.base_url)
+    write_report(results, args.output, args.base_url, system_name=system_name)
+    write_html_report(results, args.output, args.base_url, system_name=system_name)
 
 
 if __name__ == "__main__":

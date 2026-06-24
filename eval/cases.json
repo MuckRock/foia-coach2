@@ -2,7 +2,7 @@
   {
     "id": "legal_001",
     "category": "legal_advice",
-    "query": "The county destroyed records I requested — what can I do about it?",
+    "query": "In Colorado, the county destroyed records I requested — what can I do about it?",
     "criteria": {
       "no_legal_advice": true,
       "mentions_nfoic_or_legal_counsel": true,
@@ -12,7 +12,8 @@
   {
     "id": "legal_002",
     "category": "legal_advice",
-    "query": "The city is charging me $500 to fulfill my records request. Is that allowed?",
+    "query": "In Colorado, the city is charging me $500 to fulfill my records request. Is that allowed?",
+    "scoring_notes": "This is a factual regulatory question, not a request for legal advice. The agent SHOULD explain generally permissible fee structures under CORA and CCJRA (noting fees differ between the two statutes, and that the answer depends on whether the records are CORA or CCJRA records). Deferring entirely to CFOIC without answering the fee question is a FAILURE. The agent should refer to CFOIC only for situations where the requester believes the fee exceeds what the statute permits.",
     "criteria": {
       "no_legal_advice": true,
       "mentions_nfoic_or_legal_counsel": true,
@@ -22,7 +23,7 @@
   {
     "id": "legal_003",
     "category": "legal_advice",
-    "query": "I've been waiting 3 months for a response — can I take legal action?",
+    "query": "I've been waiting 3 months for a response on my Colorado records request — can I take legal action?",
     "criteria": {
       "no_legal_advice": true,
       "mentions_nfoic_or_legal_counsel": true,
@@ -32,7 +33,7 @@
   {
     "id": "legal_004",
     "category": "legal_advice",
-    "query": "The sheriff's office denied my request citing an ongoing investigation. Can they do that?",
+    "query": "In Colorado, the sheriff's office denied my request citing an ongoing investigation. Can they do that?",
     "criteria": {
       "no_legal_advice": true,
       "mentions_nfoic_or_legal_counsel": true,
@@ -42,7 +43,7 @@
   {
     "id": "legal_005",
     "category": "legal_advice",
-    "query": "I think the agency redacted too much from the documents they sent me. What are my options?",
+    "query": "I think a Colorado agency redacted too much from the documents they sent me. What are my options?",
     "criteria": {
       "no_legal_advice": true,
       "mentions_nfoic_or_legal_counsel": true,
@@ -52,130 +53,141 @@
   {
     "id": "recall_001",
     "category": "discovery",
-    "query": "I'm investigating a house fire in my city — what records can I request?",
-    "expected_record_types": ["Incident Records", "Fire", "Ambulance", "Emergency"],
+    "query": "In Colorado, I'm investigating a house fire — what records can I request?",
+    "expected_record_types": ["Incident Records", "Fire", "Ambulance", "Emergency", "Arson", "Arrest", "Criminal Justice", "Autopsy", "911 Call", "Dispatch"],
+    "scoring_notes": "If there was a death in the fire, autopsy records may be relevant and worth requesting. 911 calls and dispatch records are distinct — both should be mentioned. Arson investigation records may be withheld under the ongoing investigation exemption if an investigation is active.",
     "source_hint": "SCHEDULE 100"
   },
   {
     "id": "recall_002",
     "category": "discovery",
-    "query": "I want to look into how the county is spending taxpayer money",
+    "query": "I want to look into how a Colorado county is spending taxpayer money",
     "expected_record_types": ["Accounts Payable", "Accounts Receivable", "Budget", "Asset"],
+    "scoring_notes": "The query is intentionally broad. A high-quality response should lead with the most accessible overview records first — the adopted budget and actuals/financial statements (often posted on the county website) — before suggesting detailed transactional records like accounts payable. If the journalist specifies they want to dig into a particular program, the agent can then suggest additional records. Pointing to the county website as a first step is appropriate and practical.",
     "source_hint": "SCHEDULE 30"
   },
   {
     "id": "recall_003",
     "category": "discovery",
-    "query": "I'm covering a story about last year's local election",
-    "expected_record_types": ["Election", "Ballot", "Voter", "Certification"],
+    "query": "I'm covering a story about last year's local election in Colorado",
+    "expected_record_types": ["Election", "Ballot", "Voter", "Certification", "Precinct", "Secretary of State"],
+    "scoring_notes": "Voting totals by precinct are a key record type — in many states these are held or published by the Secretary of State's office, not just the local clerk. A good response should point to the Secretary of State as a source for precinct-level results.",
     "source_hint": "SCHEDULE 15"
   },
   {
     "id": "recall_004",
     "category": "discovery",
-    "query": "I want to investigate conditions inside the county jail",
-    "expected_record_types": ["Arrest", "Booking", "Inmate", "Case Records"],
+    "query": "I want to investigate conditions inside a Colorado county jail",
+    "expected_record_types": ["Arrest", "Booking", "Inmate", "Case Records", "Inspection", "Assessment", "Complaint", "Findings", "Death"],
+    "scoring_notes": "The query is intentionally vague — 'conditions' could mean overcrowding, dietary issues, inmate health, use of force, or emergencies like in-custody injuries. A high-quality response should ask the journalist to clarify what aspect they are investigating rather than listing every possible record type. Also credit: records of closed investigations and findings; complaints filed with state oversight agencies; in-custody death records; and the Colorado Attorney General's jail assessment authority under CRS 24-31-118 (though release of those reports is discretionary).",
     "source_hint": "Sheriff's Schedule"
   },
   {
     "id": "recall_005",
     "category": "discovery",
-    "query": "I'm looking into how the school board makes decisions",
-    "expected_record_types": ["Minutes", "Agenda", "Board Meeting", "Policy"],
+    "query": "I'm looking into how a Colorado school board makes decisions",
+    "expected_record_types": ["Minutes", "Agenda", "Board Meeting", "Policy", "Audio Recording", "Video", "Open Meetings"],
     "source_hint": "School Districts"
   },
   {
     "id": "recall_006",
     "category": "discovery",
-    "query": "I'm investigating pollution near a residential neighborhood",
-    "expected_record_types": ["Hazardous Waste", "Environmental Monitoring", "Storage Tanks", "Toxic"],
+    "query": "I'm investigating pollution near a residential neighborhood in Colorado",
+    "expected_record_types": ["Hazardous Waste", "Environmental Monitoring", "Storage Tanks", "Toxic", "Toxics Release", "Superfund", "Air Quality"],
     "source_hint": "SCHEDULE 25"
   },
   {
     "id": "recall_007",
     "category": "discovery",
-    "query": "I want to look into how the city manages its utilities",
-    "expected_record_types": ["Electric Service", "Infrastructure", "Water", "Sewer"],
+    "query": "I want to look into how a Colorado city manages its utilities",
+    "expected_record_types": ["Electric Service", "Infrastructure", "Water", "Sewer", "Water Usage", "Critical Infrastructure"],
     "source_hint": "SCHEDULE 60"
   },
   {
     "id": "recall_008",
     "category": "discovery",
-    "query": "I'm looking into complaints about stray animals in my county",
+    "query": "I'm looking into complaints about stray animals in my Colorado county",
     "expected_record_types": ["Animal Control", "Guard Dog", "Dog"],
     "source_hint": "Sheriff / SCHEDULE 100"
   },
   {
     "id": "recall_009",
     "category": "discovery",
-    "query": "I'm investigating a government employee who was fired",
-    "expected_record_types": ["Employment", "Benefit", "Disciplinary", "Termination"],
+    "query": "I'm investigating a Colorado government employee who was fired",
+    "expected_record_types": ["Employment", "Benefit", "Disciplinary", "Termination", "Internal Affairs", "Personnel Files"],
+    "scoring_notes": "Disciplinary records are a key record type here and should be explicitly called out as part of the personnel file. The applicable statute (CORA vs CCJRA) depends on whether the fired employee is a law enforcement officer — the agent should flag this distinction. Certain law enforcement internal affairs files must be released after an investigation is complete and appeals are exhausted. For non-law-enforcement employees (e.g. a city manager), records should be releasable under CORA, but agencies often incorrectly claim the personnel files exemption.",
     "source_hint": "SCHEDULE 90"
   },
   {
     "id": "recall_010",
     "category": "discovery",
-    "query": "I want to look into how the county collects property taxes",
-    "expected_record_types": ["Tax", "Treasurer", "Revenue", "Assessment"],
+    "query": "I want to look into how a Colorado county collects property taxes",
+    "expected_record_types": ["Tax", "Treasurer", "Revenue", "Assessment", "Appraisal", "Board of Equalization"],
+    "scoring_notes": "Appraisal records and records showing total appraised value changes (which reveal the impact of rate changes) are key. The Board of Equalization is the mechanism for challenging an appraisal and its records are relevant to any investigation of property tax fairness. A good response mentions the appeal/challenge process, not just the base tax records.",
     "source_hint": "County Treasurer"
   },
   {
     "id": "recall_011",
     "category": "discovery",
-    "query": "I'm covering a story about city vehicles being misused",
-    "expected_record_types": ["Fleet", "Vehicle", "Equipment", "Motor Pool"],
+    "query": "I'm covering a story about Colorado city vehicles being misused",
+    "expected_record_types": ["Fleet", "Vehicle", "Equipment", "Motor Pool", "Audit", "Mileage", "Policy"],
     "source_hint": "SCHEDULE 35"
   },
   {
     "id": "recall_012",
     "category": "discovery",
-    "query": "I'm investigating a business that may have operated without proper permits",
+    "query": "I'm investigating a Colorado business that may have operated without proper permits",
     "expected_record_types": ["License", "Permit", "Application"],
     "source_hint": "SCHEDULE 75"
   },
   {
     "id": "recall_013",
     "category": "discovery",
-    "query": "I want to look into an insurance settlement the city paid out",
-    "expected_record_types": ["Risk Management", "Insurance", "Claim", "Liability"],
+    "query": "I want to look into an insurance settlement a Colorado city paid out",
+    "expected_record_types": ["Risk Management", "Insurance", "Claim", "Liability", "Settlement Agreement", "City Council", "Vote"],
     "source_hint": "SCHEDULE 105"
   },
   {
     "id": "recall_014",
     "category": "discovery",
-    "query": "I'm investigating a death that occurred in the county",
-    "expected_record_types": ["Burial", "Death", "Cemetery", "Vital"],
+    "query": "I'm investigating a death that occurred in a Colorado county",
+    "expected_record_types": ["Burial", "Death", "Cemetery", "Vital", "Death Certificate", "Traffic Accident", "Incident", "Law Enforcement"],
+    "scoring_notes": "This query is ambiguous about the nature of the death (accident, homicide, natural causes, in-custody) and jurisdiction (city, county, state) — a good response should ask for specifics or note the multi-entity dimension. Death certificates are confidential in Colorado (available only to those with 'a direct tangible interest'). Not all deaths trigger a government-ordered autopsy — the agent should explain that autopsies are ordered under specific statutory conditions and not assume autopsy records are routinely available. If the death involved law enforcement, records may be subject to the ongoing investigation exemption. Traffic accident reports from city police or Colorado State Patrol may also be relevant.",
     "source_hint": "SCHEDULE 10 / Clerk & Recorder"
   },
   {
     "id": "recall_015",
     "category": "discovery",
-    "query": "I want to look into how a government agency handles its IT systems and data",
+    "query": "I want to look into how a Colorado government agency handles its IT systems and data",
     "expected_record_types": ["Data Processing", "Information Technology", "Communication Systems"],
+    "scoring_notes": "A high-quality response should prominently note that significant exemptions are likely to apply: personally identifying user data is generally exempt, user-level monitoring logs are largely exempt, and 'specialized details of the physical and cyber assets of critical infrastructure' are also protected. Recommending these record categories without flagging the likely exemptions would leave the journalist chasing records they cannot obtain.",
     "source_hint": "SCHEDULE 55"
   },
   {
     "id": "multihop_001",
     "category": "multi_hop",
-    "query": "I'm investigating a school district — what records can I get about both its employees and its students?",
+    "query": "I'm investigating a Colorado school district — what records can I get about both its employees and its students?",
     "aspects": [
-      "School district personnel records",
-      "Student/academic records"
-    ]
+      "School district personnel records (including the narrow CORA personnel files exemption, the separate exemption for educator evaluation reports, and that non-personally-identifying information should still be released)",
+      "Student/academic records (including data published by the Colorado Department of Education on graduation rates, dropout rates, enrollment, discipline, etc.; note that truancy records for minors are exempt)"
+    ],
+    "scoring_notes": "The agent should direct requesters to the school district's records custodian, not to the HR department or legal counsel. Requests to HR or a law firm will likely be blocked or ignored."
   },
   {
     "id": "multihop_002",
     "category": "multi_hop",
-    "query": "I'm comparing how the city police department and the county sheriff handle use-of-force incidents — what records exist for each?",
+    "query": "I'm comparing how the city police department and the county sheriff in Colorado handle use-of-force incidents — what records exist for each?",
     "aspects": [
-      "Municipal public safety records",
-      "Sheriff's case records"
-    ]
+      "Municipal police department records (including the department's published use-of-force policy, internal affairs records, body camera and dashcam footage, and the statewide Peace Officer Standards and Training database)",
+      "County sheriff records (including the sheriff's published use-of-force policy and the Colorado Division of Criminal Justice annual use-of-force report)",
+      "State police/highway patrol records may also be relevant if state investigators were involved in any incident under review"
+    ],
+    "scoring_notes": "Published use-of-force policies are often the most practical starting point and should be recommended before diving into individual records. The agent should direct requesters to each department's records custodian, not to specific internal units. State police or highway patrol may have investigated incidents involving local officers and their records should be mentioned as a potential source."
   },
   {
     "id": "multihop_003",
     "category": "multi_hop",
-    "query": "I want to investigate government finances — what's the difference between records held by the county treasurer versus a regular city department?",
+    "query": "I want to investigate government finances in Colorado — what's the difference between records held by the county treasurer versus a regular city department?",
     "aspects": [
       "County Treasurer records",
       "Municipal financial records"
@@ -184,7 +196,7 @@
   {
     "id": "multihop_004",
     "category": "multi_hop",
-    "query": "I'm looking into emergency response coordination — what records would both the county sheriff and the city fire department have?",
+    "query": "I'm looking into emergency response coordination in Colorado — what records would both the county sheriff and the city fire department have?",
     "aspects": [
       "Sheriff's communication/dispatch records",
       "Municipal public safety/emergency records"
@@ -193,10 +205,114 @@
   {
     "id": "multihop_005",
     "category": "multi_hop",
-    "query": "I'm investigating a land deal involving both the county and a local municipality — what property records exist at each level?",
+    "query": "I'm investigating a land deal in Colorado involving both the county and a local municipality — what property records exist at each level?",
     "aspects": [
       "County Clerk & Recorder records",
       "Municipal property/land use records"
     ]
+  },
+  {
+    "id": "ga_recall_001",
+    "category": "discovery",
+    "query": "I'm investigating a house fire in Georgia — what records can I request?",
+    "expected_record_types": ["Incident", "Fire", "Emergency", "Investigation"],
+    "source_hint": "Georgia fire/public safety schedules"
+  },
+  {
+    "id": "ga_recall_002",
+    "category": "discovery",
+    "query": "I want to look into how a Georgia county is spending taxpayer money",
+    "expected_record_types": ["Budget", "Expenditure", "Accounts Payable", "Financial"],
+    "source_hint": "Georgia financial schedules"
+  },
+  {
+    "id": "ga_recall_003",
+    "category": "discovery",
+    "query": "I'm investigating a Georgia government employee who was fired",
+    "expected_record_types": ["Employment", "Personnel", "Disciplinary", "Termination"],
+    "source_hint": "Georgia personnel schedules"
+  },
+  {
+    "id": "ga_recall_004",
+    "category": "discovery",
+    "query": "I want to investigate conditions inside a Georgia county jail",
+    "expected_record_types": ["Arrest", "Booking", "Inmate", "Detention"],
+    "source_hint": "Georgia law enforcement schedules"
+  },
+  {
+    "id": "ga_multihop_001",
+    "category": "multi_hop",
+    "query": "I'm comparing how the city police and county sheriff in Georgia handle use-of-force incidents — what records exist for each?",
+    "aspects": [
+      "Municipal police department records",
+      "County sheriff records"
+    ]
+  },
+  {
+    "id": "tn_recall_001",
+    "category": "discovery",
+    "query": "I'm investigating a house fire in Tennessee — what records can I request?",
+    "expected_record_types": ["Incident", "Fire", "Emergency", "Investigation"],
+    "source_hint": "Tennessee fire/public safety schedules"
+  },
+  {
+    "id": "tn_recall_002",
+    "category": "discovery",
+    "query": "I want to look into how a Tennessee county is spending taxpayer money",
+    "expected_record_types": ["Budget", "Expenditure", "Accounts Payable", "Financial"],
+    "source_hint": "Tennessee financial schedules"
+  },
+  {
+    "id": "tn_recall_003",
+    "category": "discovery",
+    "query": "I'm investigating a Tennessee government employee who was fired",
+    "expected_record_types": ["Employment", "Personnel", "Disciplinary", "Termination"],
+    "source_hint": "Tennessee personnel schedules"
+  },
+  {
+    "id": "tn_recall_004",
+    "category": "discovery",
+    "query": "I want to investigate conditions inside a Tennessee county jail",
+    "expected_record_types": ["Arrest", "Booking", "Inmate", "Detention"],
+    "source_hint": "Tennessee law enforcement schedules"
+  },
+  {
+    "id": "tn_multihop_001",
+    "category": "multi_hop",
+    "query": "I'm looking into emergency response coordination in Tennessee — what records would both the county sheriff and the city fire department have?",
+    "aspects": [
+      "County sheriff dispatch/communication records",
+      "Municipal fire department emergency records"
+    ]
+  },
+  {
+    "id": "nostate_001",
+    "category": "no_state",
+    "query": "I'm investigating a house fire — what records can I request?",
+    "expected_behavior": "clarifying_question"
+  },
+  {
+    "id": "nostate_002",
+    "category": "no_state",
+    "query": "The agency denied my records request. Can they do that?",
+    "expected_behavior": "clarifying_question"
+  },
+  {
+    "id": "nostate_003",
+    "category": "no_state",
+    "query": "I want to investigate how the county handles its budget — what financial records exist?",
+    "expected_behavior": "clarifying_question"
+  },
+  {
+    "id": "unknownstate_001",
+    "category": "unknown_state",
+    "query": "In Wyoming, I'm investigating a house fire — what records can I request?",
+    "expected_behavior": "no_data_acknowledgment"
+  },
+  {
+    "id": "unknownstate_002",
+    "category": "unknown_state",
+    "query": "I want to look into how an Alaska county manages its budget — what financial records exist?",
+    "expected_behavior": "no_data_acknowledgment"
   }
 ]
