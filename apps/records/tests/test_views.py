@@ -52,9 +52,9 @@ class TestChatCompletionsView:
         self, mock_stream, mock_build, mock_retrieve, async_client
     ):
         mock_retrieve.return_value = []
-        mock_build.return_value = [{"role": "user", "content": "test"}]
+        mock_build.return_value = ([{"role": "user", "content": "test"}], {})
 
-        async def fake_stream(messages):
+        async def fake_stream(messages, citation_map=None):
             yield "data: {}\n\n"
             yield "data: [DONE]\n\n"
 
@@ -81,9 +81,9 @@ class TestChatCompletionsView:
         self, mock_stream, mock_build, mock_retrieve, async_client
     ):
         mock_retrieve.return_value = []
-        mock_build.return_value = [{"role": "user", "content": "test"}]
+        mock_build.return_value = ([{"role": "user", "content": "test"}], {})
 
-        async def fake_stream(messages):
+        async def fake_stream(messages, citation_map=None):
             yield "data: {}\n\n"
             yield "data: [DONE]\n\n"
 
@@ -112,7 +112,7 @@ class TestChatCompletionsView:
         from django.http import JsonResponse
 
         mock_retrieve.return_value = []
-        mock_build.return_value = [{"role": "user", "content": "test"}]
+        mock_build.return_value = ([{"role": "user", "content": "test"}], {})
         mock_complete.return_value = JsonResponse({"id": "chatcmpl-123", "choices": []})
 
         payload = {

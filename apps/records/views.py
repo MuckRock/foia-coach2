@@ -12,7 +12,7 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
 import openai
-from apps.records.prompts import build_messages
+from apps.records.prompts import build_messages, postprocess_citations
 from apps.records.search import document_search, hybrid_search
 
 logger = logging.getLogger(__name__)
@@ -168,8 +168,13 @@ def _llm_client() -> openai.AsyncOpenAI:
     return openai.AsyncOpenAI(**kwargs)
 
 
-async def stream_completion(messages: list[dict]):
-    """Yield Server-Sent Events (SSE) in OpenAI streaming format."""
+async def stream_completion(messages: list[dict], citation_map: dict | None = None):
+    """Yield Server-Sent Events (SSE) in OpenAI streaming format.
+
+    When citation_map is provided, the full response is buffered, citations are
+    renumbered via postprocess_citations(), and the processed text is yielded as
+    a single content chunk followed by [DONE].
+    """
     client = _llm_client()
     logger.info(
         "=== LLM REQUEST === model=%r base_url=%r temperature=%s (enabled=%s)",
@@ -185,10 +190,19 @@ async def stream_completion(messages: list[dict]):
     if settings.LLM_TEMPERATURE_ENABLED:
         create_kwargs["temperature"] = settings.LLM_TEMPERATURE
     stream = await client.chat.completions.create(**create_kwargs)
-    async for chunk in stream:
-        if not chunk.choices:
-            continue
-        delta = chunk.choices[0].delta
+
+    if citation_map:
+        # Buffer the full response for citation post-processing
+        collected = []
+        async for chunk in stream:
+            if not chunk.choices:
+                continue
+            delta = chunk.choices[0].delta
+            if delta.content:
+                collected.append(delta.content)
+
+        raw_text = "".join(collected)
+        processed = postprocess_citations(raw_text, citation_map)
 
         payload = {
             "id": completion_id,
@@ -197,20 +211,38 @@ async def stream_completion(messages: list[dict]):
             "model": "agent-moss",
             "choices": [{
                 "index": 0,
-                "delta": {
-                    "role": delta.role or None,
-                    "content": delta.content or "",
-                },
-                "finish_reason": chunk.choices[0].finish_reason,
+                "delta": {"role": "assistant", "content": processed},
+                "finish_reason": "stop",
             }],
         }
         yield f"data: {json.dumps(payload)}\n\n"
+    else:
+        async for chunk in stream:
+            if not chunk.choices:
+                continue
+            delta = chunk.choices[0].delta
+
+            payload = {
+                "id": completion_id,
+                "object": "chat.completion.chunk",
+                "created": created,
+                "model": "agent-moss",
+                "choices": [{
+                    "index": 0,
+                    "delta": {
+                        "role": delta.role or None,
+                        "content": delta.content or "",
+                    },
+                    "finish_reason": chunk.choices[0].finish_reason,
+                }],
+            }
+            yield f"data: {json.dumps(payload)}\n\n"
 
     yield "data: [DONE]\n\n"
 
 
-async def complete(messages: list[dict]) -> JsonResponse:
-    """Non-streaming completion."""
+async def complete(messages: list[dict], citation_map: dict | None = None) -> JsonResponse:
+    """Non-streaming completion with optional citation post-processing."""
     client = _llm_client()
     logger.info(
         "=== LLM REQUEST === model=%r base_url=%r temperature=%s (enabled=%s)",
@@ -223,7 +255,12 @@ async def complete(messages: list[dict]) -> JsonResponse:
     if settings.LLM_TEMPERATURE_ENABLED:
         create_kwargs["temperature"] = settings.LLM_TEMPERATURE
     response = await client.chat.completions.create(**create_kwargs)
-    return JsonResponse(response.model_dump())
+    data = response.model_dump()
+    if citation_map and data.get("choices"):
+        content = data["choices"][0].get("message", {}).get("content", "")
+        if content:
+            data["choices"][0]["message"]["content"] = postprocess_citations(content, citation_map)
+    return JsonResponse(data)
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -310,7 +347,7 @@ class ChatCompletionsView(View):
             )
 
         try:
-            augmented_messages = await build_messages(user_message, records, doc_chunks, messages, state=state)
+            augmented_messages, citation_map = await build_messages(user_message, records, doc_chunks, messages, state=state)
         except RuntimeError as e:
             return JsonResponse({"error": str(e)}, status=500)
 
@@ -322,11 +359,11 @@ class ChatCompletionsView(View):
 
         if stream:
             return StreamingHttpResponse(
-                stream_completion(augmented_messages),
+                stream_completion(augmented_messages, citation_map=citation_map),
                 content_type="text/event-stream",
             )
         else:
-            return await complete(augmented_messages)
+            return await complete(augmented_messages, citation_map=citation_map)
 
     async def get(self, request):
         return JsonResponse({"error": "Method not allowed"}, status=405)
