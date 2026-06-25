@@ -281,9 +281,6 @@ class ChatCompletionsView(View):
             embed_query(hyde_text),
         )
         records, doc_chunks = await asyncio.gather(
-            # Use HyDE text for both sparse FTS and dense embedding — it contains
-            # technical record-schedule vocabulary that bridges natural-language queries
-            # to formal record titles (e.g. "spending money" → "Accounts Payable, Budget")
             retrieve(hyde_text, hyde_embedding, jurisdiction=state),
             retrieve_documents(query_embedding, jurisdiction=state),
         )

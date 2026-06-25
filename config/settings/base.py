@@ -87,7 +87,10 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # LOGGING
+import os as _os
 _log_file = env("DJANGO_LOG_FILE", default="")
+if _log_file and not _os.path.isdir(_os.path.dirname(_log_file) or "."):
+    _log_file = ""  # disable if parent directory doesn't exist
 
 LOGGING = {
     "version": 1,
@@ -107,6 +110,7 @@ LOGGING = {
                     "class": "logging.FileHandler",
                     "filename": _log_file,
                     "formatter": "timestamped",
+                    "delay": True,
                 }
             }
             if _log_file else {}
