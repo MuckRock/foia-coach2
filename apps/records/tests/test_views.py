@@ -20,7 +20,7 @@ class TestModelsView:
         data = json.loads(response.content)
         assert data["object"] == "list"
         ids = [m["id"] for m in data["data"]]
-        assert "foia-coach" in ids
+        assert "agent-moss" in ids
 
 
 @pytest.mark.django_db
@@ -33,7 +33,7 @@ class TestChatCompletionsView:
     @pytest.mark.asyncio
     async def test_no_user_message_returns_400(self, async_client):
         payload = {
-            "model": "foia-coach",
+            "model": "agent-moss",
             "messages": [{"role": "system", "content": "You are helpful."}],
             "stream": False,
         }
@@ -61,7 +61,7 @@ class TestChatCompletionsView:
         mock_stream.return_value = fake_stream([])
 
         payload = {
-            "model": "foia-coach",
+            "model": "agent-moss",
             "messages": [{"role": "user", "content": "How long for permits?"}],
             "stream": True,
         }
@@ -90,7 +90,7 @@ class TestChatCompletionsView:
         mock_stream.return_value = fake_stream([])
 
         payload = {
-            "model": "foia-coach",
+            "model": "agent-moss",
             "messages": [{"role": "user", "content": "How long for permits?"}],
             "stream": True,
         }
@@ -116,7 +116,7 @@ class TestChatCompletionsView:
         mock_complete.return_value = JsonResponse({"id": "chatcmpl-123", "choices": []})
 
         payload = {
-            "model": "foia-coach",
+            "model": "agent-moss",
             "messages": [{"role": "user", "content": "How long for permits?"}],
             "stream": False,
         }

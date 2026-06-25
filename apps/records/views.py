@@ -109,15 +109,39 @@ async def retrieve(query: str, query_embedding: list[float], jurisdiction: str |
         query_text=query,
         query_embedding=query_embedding,
         jurisdiction=jurisdiction,
-        limit=8,
+        limit=12,
     )
+
+
+async def generate_hyde_query(user_message: str, state: str) -> str:
+    """Generate a hypothetical record description for better semantic embedding (HyDE)."""
+    client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+    response = await client.chat.completions.create(
+        model=settings.QUERY_REWRITE_MODEL,
+        messages=[{
+            "role": "system",
+            "content": (
+                f"You are a {state} public records expert. Given a journalist's or researcher's "
+                "question, write a short passage (2-3 sentences) describing the types of "
+                "government records that would be relevant. Use language found in government "
+                "retention schedules — record titles, custodian names, official terminology. "
+                "Output only the passage, nothing else."
+            ),
+        }, {
+            "role": "user",
+            "content": user_message,
+        }],
+        temperature=0,
+        max_tokens=150,
+    )
+    return response.choices[0].message.content.strip()
 
 
 async def retrieve_documents(query_embedding: list[float], jurisdiction: str | None = None) -> list[dict]:
     return await sync_to_async(document_search)(
         query_embedding=query_embedding,
         jurisdiction=jurisdiction,
-        limit=6,
+        limit=10,
     )
 
 
@@ -136,18 +160,31 @@ async def _clarifying_stream(message: str):
     yield "data: [DONE]\n\n"
 
 
+def _llm_client() -> openai.AsyncOpenAI:
+    """Build an AsyncOpenAI client using LLM_API_KEY and optional LLM_BASE_URL."""
+    kwargs = {"api_key": settings.LLM_API_KEY}
+    if settings.LLM_BASE_URL:
+        kwargs["base_url"] = settings.LLM_BASE_URL
+    return openai.AsyncOpenAI(**kwargs)
+
+
 async def stream_completion(messages: list[dict]):
     """Yield Server-Sent Events (SSE) in OpenAI streaming format."""
-    client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+    client = _llm_client()
+    logger.info(
+        "=== LLM REQUEST === model=%r base_url=%r temperature=%s (enabled=%s)",
+        settings.LLM_MODEL,
+        settings.LLM_BASE_URL or "(openai default)",
+        settings.LLM_TEMPERATURE,
+        settings.LLM_TEMPERATURE_ENABLED,
+    )
     completion_id = f"chatcmpl-{uuid.uuid4().hex[:8]}"
     created = int(time.time())
 
-    stream = await client.chat.completions.create(
-        model=settings.LLM_MODEL,
-        messages=messages,
-        temperature=settings.LLM_TEMPERATURE,
-        stream=True,
-    )
+    create_kwargs = {"model": settings.LLM_MODEL, "messages": messages, "stream": True}
+    if settings.LLM_TEMPERATURE_ENABLED:
+        create_kwargs["temperature"] = settings.LLM_TEMPERATURE
+    stream = await client.chat.completions.create(**create_kwargs)
     async for chunk in stream:
         if not chunk.choices:
             continue
@@ -174,12 +211,18 @@ async def stream_completion(messages: list[dict]):
 
 async def complete(messages: list[dict]) -> JsonResponse:
     """Non-streaming completion."""
-    client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-    response = await client.chat.completions.create(
-        model=settings.LLM_MODEL,
-        messages=messages,
-        temperature=settings.LLM_TEMPERATURE,
+    client = _llm_client()
+    logger.info(
+        "=== LLM REQUEST === model=%r base_url=%r temperature=%s (enabled=%s)",
+        settings.LLM_MODEL,
+        settings.LLM_BASE_URL or "(openai default)",
+        settings.LLM_TEMPERATURE,
+        settings.LLM_TEMPERATURE_ENABLED,
     )
+    create_kwargs = {"model": settings.LLM_MODEL, "messages": messages}
+    if settings.LLM_TEMPERATURE_ENABLED:
+        create_kwargs["temperature"] = settings.LLM_TEMPERATURE
+    response = await client.chat.completions.create(**create_kwargs)
     return JsonResponse(response.model_dump())
 
 
@@ -224,18 +267,29 @@ class ChatCompletionsView(View):
                 }],
             })
 
-        retrieval_query = await rewrite_query(user_message, messages)
+        retrieval_query, hyde_text = await asyncio.gather(
+            rewrite_query(user_message, messages),
+            generate_hyde_query(user_message, state),
+        )
         if retrieval_query != user_message:
             logger.info("=== QUERY REWRITE === %r → %r", user_message, retrieval_query)
+        logger.info("=== HYDE QUERY === %r", hyde_text)
 
-        query_embedding = await embed_query(retrieval_query)
+        # Embed both in parallel: raw query for guidance-doc search, HyDE for records search
+        query_embedding, hyde_embedding = await asyncio.gather(
+            embed_query(retrieval_query),
+            embed_query(hyde_text),
+        )
         records, doc_chunks = await asyncio.gather(
-            retrieve(retrieval_query, query_embedding, jurisdiction=state),
+            # Use HyDE text for both sparse FTS and dense embedding — it contains
+            # technical record-schedule vocabulary that bridges natural-language queries
+            # to formal record titles (e.g. "spending money" → "Accounts Payable, Budget")
+            retrieve(hyde_text, hyde_embedding, jurisdiction=state),
             retrieve_documents(query_embedding, jurisdiction=state),
         )
 
         logger.info("=== RETRIEVED RECORDS (%d) ===", len(records))
-        logger.info("query: %s", retrieval_query)
+        logger.info("sparse/dense query (HyDE): %s", hyde_text)
         for i, r in enumerate(records, 1):
             logger.info(
                 "  [%d] (rrf=%.4f dense=%.4f sparse=%.4f) %s — %s | retention: %s",

@@ -94,7 +94,7 @@ def hybrid_search(
         sd.documentcloud_url,
         f.dense_score,
         f.sparse_score,
-        f.dense_score + f.sparse_score AS rrf_score
+        f.dense_score * 1.5 + f.sparse_score AS rrf_score
     FROM fused f
     JOIN records_retentionrecord r ON f.id = r.id
     JOIN records_sourcedocument sd ON r.source_document_id = sd.id

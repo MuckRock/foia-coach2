@@ -87,21 +87,34 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # LOGGING
+_log_file = env("DJANGO_LOG_FILE", default="")
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
         "simple": {"format": "%(levelname)s %(name)s: %(message)s"},
+        "timestamped": {"format": "%(asctime)s %(levelname)s %(name)s: %(message)s"},
     },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "simple",
         },
+        **(
+            {
+                "file": {
+                    "class": "logging.FileHandler",
+                    "filename": _log_file,
+                    "formatter": "timestamped",
+                }
+            }
+            if _log_file else {}
+        ),
     },
     "loggers": {
         "apps.records": {
-            "handlers": ["console"],
+            "handlers": ["console", "file"] if _log_file else ["console"],
             "level": "INFO",
             "propagate": False,
         },
@@ -130,8 +143,12 @@ ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["*"])
 # FOIA Coach settings
 DOCUMENTCLOUD_USERNAME = env("DOCUMENTCLOUD_USERNAME", default="")
 DOCUMENTCLOUD_PASSWORD = env("DOCUMENTCLOUD_PASSWORD", default="")
-LLM_MODEL = env("LLM_MODEL", default="gpt-5.2")
+LLM_MODEL = env("LLM_MODEL", default="gpt-4o")
+LLM_BASE_URL = env("LLM_BASE_URL", default="")  # leave empty for OpenAI; set to https://api.anthropic.com/v1 for Claude
+_llm_api_key_override = env("LLM_API_KEY", default="")
+OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
+LLM_API_KEY = _llm_api_key_override if _llm_api_key_override else OPENAI_API_KEY
 QUERY_REWRITE_MODEL = env("QUERY_REWRITE_MODEL", default="gpt-4o-mini")
 EMBEDDING_MODEL = env("EMBEDDING_MODEL", default="text-embedding-3-small")
-OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
-LLM_TEMPERATURE = env.float("LLM_TEMPERATURE", default=0.2)
+LLM_TEMPERATURE = env.float("LLM_TEMPERATURE", default=0.3)
+LLM_TEMPERATURE_ENABLED = env.bool("LLM_TEMPERATURE_ENABLED", default=True)  # set False for models that deprecated temperature (gpt-5.5, claude)

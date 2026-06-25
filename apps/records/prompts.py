@@ -92,10 +92,10 @@ async def build_messages(
         f"{state_instruction}"
         "When citing a source that has a URL, format the document title as a markdown link, "
         "e.g. [Schedule Title](https://...).\n\n"
+        "=== GUIDANCE DOCUMENTS (check these first) ===\n"
+        f"{format_retrieved_chunks(doc_chunks)}\n\n"
         "=== RETENTION SCHEDULE RECORDS ===\n"
-        f"{format_retrieved_records(records)}\n\n"
-        "=== SUPPORTING DOCUMENTS ===\n"
-        f"{format_retrieved_chunks(doc_chunks)}"
+        f"{format_retrieved_records(records)}"
         + (f"\n\n{chapter_section}" if chapter_section else "")
     )
 
