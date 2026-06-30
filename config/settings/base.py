@@ -153,6 +153,7 @@ _llm_api_key_override = env("LLM_API_KEY", default="")
 OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
 LLM_API_KEY = _llm_api_key_override if _llm_api_key_override else OPENAI_API_KEY
 QUERY_REWRITE_MODEL = env("QUERY_REWRITE_MODEL", default="gpt-4o-mini")
+EXTRACTION_MODEL = env("EXTRACTION_MODEL", default="gpt-5.2")  # used for import commands (always OpenAI)
 EMBEDDING_MODEL = env("EMBEDDING_MODEL", default="text-embedding-3-small")
 LLM_TEMPERATURE = env.float("LLM_TEMPERATURE", default=0.3)
 LLM_TEMPERATURE_ENABLED = env.bool("LLM_TEMPERATURE_ENABLED", default=True)  # set False for models that deprecated temperature (gpt-5.5, claude)

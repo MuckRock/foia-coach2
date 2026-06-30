@@ -58,7 +58,7 @@ def parse_schedule_info(document_title: str) -> tuple[str, str]:
 def extract_records_with_llm(openai_client, full_text: str) -> list[dict]:
     prompt = EXTRACTION_PROMPT.format(full_text=full_text)
     response = openai_client.chat.completions.create(
-        model=settings.LLM_MODEL,
+        model=settings.EXTRACTION_MODEL,
         response_format={"type": "json_object"},
         messages=[{"role": "user", "content": prompt}],
         temperature=0,
