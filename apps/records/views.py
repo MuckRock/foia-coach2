@@ -69,8 +69,8 @@ async def embed_query(query: str) -> list[float]:
 
 async def detect_state(user_message: str, conversation_history: list[dict]) -> str | None:
     """
-    Detect which US state is being discussed in the conversation.
-    Returns the full state name (e.g., 'Colorado') or None if not clearly specified.
+    Detect which US state or jurisdiction is being discussed in the conversation.
+    Returns the full name (e.g., 'Colorado', 'District of Columbia') or None if not clearly specified.
     """
     recent = conversation_history[-10:]
     history_text = "\n".join(
@@ -87,10 +87,10 @@ async def detect_state(user_message: str, conversation_history: list[dict]) -> s
             {
                 "role": "system",
                 "content": (
-                    "You are a US state detector for a public records retention schedule assistant. "
-                    "Given a conversation, determine which single US state is being discussed. "
-                    "Return ONLY the full state name (e.g., 'Colorado', 'Texas'). "
-                    "If the state is not clearly specified or multiple states are mentioned without a clear focus, return 'UNKNOWN'. "
+                    "You are a US jurisdiction detector for a public records retention schedule assistant. "
+                    "Given a conversation, determine which single US state or territory is being discussed. "
+                    "Return ONLY the full jurisdiction name (e.g., 'Colorado', 'Texas', 'District of Columbia'). "
+                    "If the jurisdiction is not clearly specified or multiple are mentioned without a clear focus, return 'UNKNOWN'. "
                     "Output nothing else."
                 ),
             },
@@ -286,7 +286,7 @@ class ChatCompletionsView(View):
         logger.info("=== STATE DETECTED: %r ===", state)
 
         if state is None:
-            clarifying = "To provide accurate information, I need to know which state's records you're working with. Which US state are you asking about?"
+            clarifying = "To provide accurate information, I need to know which jurisdiction's records you're working with. Which US state or territory are you asking about?"
             if stream:
                 return StreamingHttpResponse(
                     _clarifying_stream(clarifying),
