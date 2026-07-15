@@ -20,6 +20,7 @@ media/
 # Environment files with secrets
 .envs/.local/
 .envs/.production/
+.mcp.json
 
 # pytest
 .pytest_cache/

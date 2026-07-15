@@ -25,6 +25,26 @@ services:
       - key: LLM_TEMPERATURE
         value: "0.2"
 
+  - type: web
+    name: agent-moss-mcp
+    env: docker
+    dockerfilePath: ./Dockerfile.mcp
+    plan: starter
+    region: oregon
+    envVars:
+      - key: MOSS_API_URL
+        value: https://foia-coach.onrender.com
+      - key: MCP_SERVER_URL
+        value: https://agent-moss-mcp.onrender.com
+      - key: MUCKROCK_API_URL
+        value: https://www.muckrock.com/api_v2
+      - key: SQUARELET_BASE
+        value: https://accounts.muckrock.com
+      - key: SQUARELET_CLIENT_ID
+        sync: false
+      - key: SQUARELET_CLIENT_SECRET
+        sync: false
+
 databases:
   - name: foia-coach-db
     databaseName: foia_coach
