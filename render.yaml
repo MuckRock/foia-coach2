@@ -17,7 +17,7 @@ services:
       - key: OPENAI_API_KEY
         sync: false
       - key: LLM_MODEL
-        value: gpt-4o
+        value: claude-opus-4-8
       - key: QUERY_REWRITE_MODEL
         value: gpt-4o-mini
       - key: EMBEDDING_MODEL
@@ -35,7 +35,7 @@ services:
       - key: MOSS_API_URL
         value: https://foia-coach.onrender.com
       - key: MCP_SERVER_URL
-        value: https://agent-moss-mcp.onrender.com
+        value: https://agent-moss-mcp-cxpx.onrender.com
       - key: MUCKROCK_API_URL
         value: https://www.muckrock.com/api_v2
       - key: SQUARELET_BASE

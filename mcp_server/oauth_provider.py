@@ -48,6 +48,18 @@ class SquareletOAuthProvider:
     async def register_client(self, client_info: OAuthClientInformationFull) -> None:
         self._clients[client_info.client_id] = client_info
 
+    # --- MuckRock token exchange ---
+
+    async def _get_muckrock_tokens(self, oidc_access_token: str) -> tuple[str, str | None]:
+        """Exchange a Squarelet OIDC token for a MuckRock API JWT."""
+        resp = await self._http.post(
+            f"{SQUARELET_BASE}/api/jwt/",
+            data={"oidc_token": oidc_access_token},
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["access_token"], data.get("refresh_token")
+
     # --- Authorization ---
 
     async def authorize(self, client: OAuthClientInformationFull, params: AuthorizationParams) -> str:
@@ -103,11 +115,16 @@ class SquareletOAuthProvider:
         except Exception as exc:
             return HTMLResponse(f"Token exchange failed: {exc}", status_code=500)
 
-        squarelet_access_token = tokens.get("access_token")
-        squarelet_refresh_token = tokens.get("refresh_token")
+        oidc_access_token = tokens.get("access_token")
 
-        if not squarelet_access_token:
+        if not oidc_access_token:
             return HTMLResponse("No access token returned by Squarelet", status_code=500)
+
+        # Exchange OIDC token for MuckRock API JWT
+        try:
+            muckrock_access_token, muckrock_refresh_token = await self._get_muckrock_tokens(oidc_access_token)
+        except Exception as exc:
+            return HTMLResponse(f"MuckRock token exchange failed: {exc}", status_code=500)
 
         # Generate MCP authorization code
         mcp_code = secrets.token_urlsafe(32)
@@ -120,8 +137,8 @@ class SquareletOAuthProvider:
             redirect_uri=AnyUrl(pending["redirect_uri"]),
             redirect_uri_provided_explicitly=pending["redirect_uri_provided_explicitly"],
             resource=pending["resource"],
-            squarelet_access_token=squarelet_access_token,
-            squarelet_refresh_token=squarelet_refresh_token,
+            squarelet_access_token=muckrock_access_token,
+            squarelet_refresh_token=muckrock_refresh_token,
         )
 
         redirect_url = construct_redirect_uri(
@@ -206,19 +223,14 @@ class SquareletOAuthProvider:
         if entry is None:
             raise TokenError(error="invalid_grant", error_description="Refresh token not found")
 
-        squarelet_refresh = entry.get("squarelet_refresh_token")
-        if not squarelet_refresh:
-            raise TokenError(error="invalid_grant", error_description="No Squarelet refresh token available")
+        muckrock_refresh = entry.get("squarelet_refresh_token")
+        if not muckrock_refresh:
+            raise TokenError(error="invalid_grant", error_description="No MuckRock refresh token available")
 
         try:
             resp = await self._http.post(
-                f"{SQUARELET_BASE}/openid/token",
-                data={
-                    "grant_type": "refresh_token",
-                    "refresh_token": squarelet_refresh,
-                    "client_id": SQUARELET_CLIENT_ID,
-                    "client_secret": SQUARELET_CLIENT_SECRET,
-                },
+                f"{SQUARELET_BASE}/api/jwt/refresh/",
+                json={"refresh": muckrock_refresh},
             )
             resp.raise_for_status()
             tokens = resp.json()
@@ -226,10 +238,10 @@ class SquareletOAuthProvider:
             raise TokenError(error="invalid_grant", error_description=str(exc))
 
         new_squarelet_access = tokens.get("access_token")
-        new_squarelet_refresh = tokens.get("refresh_token", squarelet_refresh)
+        new_squarelet_refresh = tokens.get("refresh_token", muckrock_refresh)
 
         if not new_squarelet_access:
-            raise TokenError(error="invalid_grant", error_description="No access token returned by Squarelet")
+            raise TokenError(error="invalid_grant", error_description="No access token returned by MuckRock")
 
         use_scopes = scopes or refresh_token.scopes
         mcp_token = secrets.token_urlsafe(32)
