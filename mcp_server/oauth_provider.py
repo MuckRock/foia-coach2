@@ -241,8 +241,8 @@ class SquareletOAuthProvider:
         except Exception as exc:
             raise TokenError(error="invalid_grant", error_description=str(exc))
 
-        new_squarelet_access = tokens.get("access_token")
-        new_squarelet_refresh = tokens.get("refresh_token", muckrock_refresh)
+        new_squarelet_access = tokens.get("access")
+        new_squarelet_refresh = tokens.get("refresh", muckrock_refresh)
 
         if not new_squarelet_access:
             raise TokenError(error="invalid_grant", error_description="No access token returned by MuckRock")
@@ -293,8 +293,8 @@ class SquareletOAuthProvider:
         resp.raise_for_status()
         data = resp.json()
 
-        new_access = data["access_token"]
-        new_refresh = data.get("refresh_token", muckrock_refresh)
+        new_access = data["access"]
+        new_refresh = data.get("refresh", muckrock_refresh)
 
         # Update claims in place so subsequent load_access_token calls see the new token
         if at.claims is None:
