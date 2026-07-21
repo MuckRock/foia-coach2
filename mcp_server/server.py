@@ -1,5 +1,8 @@
 import json
+from collections.abc import Callable, Coroutine
+from typing import Any
 
+import httpx
 from mcp.server.auth.middleware.auth_context import get_access_token
 from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions
 from mcp.server.fastmcp import FastMCP, Context
@@ -39,15 +42,34 @@ moss = MossClient()
 muckrock = MuckRockClient()
 
 
-def _get_squarelet_token() -> str:
-    """Extract the Squarelet access token from the current MCP session claims."""
-    token = get_access_token()
-    if token is None:
+async def _muckrock_call(fn: Callable[..., Coroutine[Any, Any, Any]], *args, **kwargs) -> Any:
+    """Call a MuckRock client method with the current session token.
+
+    On 401, refreshes the MuckRock JWT via the provider and retries once —
+    no OAuth browser flow required.
+    """
+    mcp_token_obj = get_access_token()
+    if mcp_token_obj is None:
         raise RuntimeError("Authentication required")
-    squarelet_token = (token.claims or {}).get("squarelet_access_token")
-    if not squarelet_token:
-        raise RuntimeError("No Squarelet token in auth claims")
-    return squarelet_token
+
+    # Load fresh token from provider — reflects any refresh that happened earlier
+    # in this session (e.g. a previous tool call already refreshed it)
+    fresh_at = await provider.load_access_token(mcp_token_obj.token)
+    if fresh_at is None:
+        raise RuntimeError("MCP token expired")
+    token = (fresh_at.claims or {}).get("squarelet_access_token")
+    if not token:
+        raise RuntimeError("No MuckRock token in auth claims")
+
+    try:
+        return await fn(token, *args, **kwargs)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code != 401:
+            raise
+
+    # MuckRock JWT expired — refresh and retry
+    token = await provider.refresh_muckrock_token(mcp_token_obj.token)
+    return await fn(token, *args, **kwargs)
 
 
 @mcp.custom_route("/oauth/callback", methods=["GET"])
@@ -102,13 +124,11 @@ async def search_agencies(query: str, jurisdiction: str | None = None, ctx: Cont
 
     Returns a list of matching agencies with their IDs, names, and jurisdictions.
     """
-    token = _get_squarelet_token()
-
     jurisdiction_id = None
     if jurisdiction:
-        jurisdiction_id = await muckrock.get_jurisdiction_id(token, jurisdiction)
+        jurisdiction_id = await _muckrock_call(muckrock.get_jurisdiction_id, jurisdiction)
 
-    result = await muckrock.search_agencies(token, query, jurisdiction_id)
+    result = await _muckrock_call(muckrock.search_agencies, query, jurisdiction_id)
 
     if result.get("count", 0) == 0:
         if ctx is not None:
@@ -135,7 +155,7 @@ async def search_agencies(query: str, jurisdiction: str | None = None, ctx: Cont
 
                 for term in alternatives:
                     await ctx.info(f"Trying alternative term: '{term}'")
-                    result = await muckrock.search_agencies(token, term, jurisdiction_id)
+                    result = await _muckrock_call(muckrock.search_agencies, term, jurisdiction_id)
                     if result.get("count", 0) > 0:
                         result["search_term_used"] = term
                         break
@@ -143,7 +163,7 @@ async def search_agencies(query: str, jurisdiction: str | None = None, ctx: Cont
                 await ctx.warning(f"Sampling failed: {e}")
 
         if result.get("count", 0) == 0 and jurisdiction_id:
-            result = await muckrock.search_agencies(token, None, jurisdiction_id)
+            result = await _muckrock_call(muckrock.search_agencies, None, jurisdiction_id)
 
     return json.dumps(result, indent=2)
 
@@ -155,8 +175,7 @@ async def get_agency(agency_id: int) -> str:
     Returns contact info, average response time, fee information, and status.
     Use search_agencies first to find the agency ID.
     """
-    token = _get_squarelet_token()
-    result = await muckrock.get_agency(token, agency_id)
+    result = await _muckrock_call(muckrock.get_agency, agency_id)
     return json.dumps(result, indent=2)
 
 
@@ -175,8 +194,7 @@ async def file_request(agency_id: int, title: str, document_request: str, full_t
 
     Returns the created request details including tracking URL.
     """
-    token = _get_squarelet_token()
-    result = await muckrock.file_request(token, agency_id, title, document_request, full_text)
+    result = await _muckrock_call(muckrock.file_request, agency_id, title, document_request, full_text)
     return json.dumps(result, indent=2)
 
 
@@ -190,8 +208,7 @@ async def my_requests(user_id: int | None = None, status: str | None = None, pag
 
     Returns a list of requests with IDs, titles, agencies, and statuses.
     """
-    token = _get_squarelet_token()
-    result = await muckrock.my_requests(token, user_id, status, page_size)
+    result = await _muckrock_call(muckrock.my_requests, user_id, status, page_size)
     return json.dumps(result, indent=2)
 
 
@@ -202,8 +219,7 @@ async def get_request(request_id: int) -> str:
     Returns full request details including communications and documents received.
     Use my_requests first to find the request ID.
     """
-    token = _get_squarelet_token()
-    result = await muckrock.get_request(token, request_id)
+    result = await _muckrock_call(muckrock.get_request, request_id)
     return json.dumps(result, indent=2)
 
 
@@ -221,6 +237,5 @@ async def search_requests(
 
     Returns a list of matching public requests.
     """
-    token = _get_squarelet_token()
-    result = await muckrock.search_requests(token, query, agency, jurisdiction, status)
+    result = await _muckrock_call(muckrock.search_requests, query, agency, jurisdiction, status)
     return json.dumps(result, indent=2)

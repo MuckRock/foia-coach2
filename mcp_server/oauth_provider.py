@@ -38,6 +38,8 @@ class SquareletOAuthProvider:
         self._access_tokens: dict[str, AccessToken] = {}
         # mcp_refresh_token → {token: RefreshToken, squarelet_refresh_token: str}
         self._refresh_tokens: dict[str, dict] = {}
+        # mcp_access_token → muckrock_refresh_token (for mid-session JWT refresh)
+        self._muckrock_refresh_by_mcp_token: dict[str, str] = {}
         self._http = httpx.AsyncClient(timeout=30.0)
 
     # --- Client registry ---
@@ -185,6 +187,8 @@ class SquareletOAuthProvider:
             ),
             "squarelet_refresh_token": authorization_code.squarelet_refresh_token,
         }
+        if authorization_code.squarelet_refresh_token:
+            self._muckrock_refresh_by_mcp_token[mcp_token] = authorization_code.squarelet_refresh_token
 
         return OAuthToken(
             access_token=mcp_token,
@@ -229,7 +233,7 @@ class SquareletOAuthProvider:
 
         try:
             resp = await self._http.post(
-                f"{SQUARELET_BASE}/api/jwt/refresh/",
+                f"{SQUARELET_BASE}/api/refresh/",
                 json={"refresh": muckrock_refresh},
             )
             resp.raise_for_status()
@@ -262,6 +266,7 @@ class SquareletOAuthProvider:
             ),
             "squarelet_refresh_token": new_squarelet_refresh,
         }
+        self._muckrock_refresh_by_mcp_token[mcp_token] = new_squarelet_refresh
 
         return OAuthToken(
             access_token=mcp_token,
@@ -271,8 +276,37 @@ class SquareletOAuthProvider:
             refresh_token=mcp_refresh,
         )
 
+    async def refresh_muckrock_token(self, mcp_token: str) -> str:
+        """Refresh the MuckRock JWT mid-session without requiring a new OAuth browser flow."""
+        at = self._access_tokens.get(mcp_token)
+        if at is None:
+            raise RuntimeError("MCP token not found")
+
+        muckrock_refresh = self._muckrock_refresh_by_mcp_token.get(mcp_token)
+        if not muckrock_refresh:
+            raise RuntimeError("No MuckRock refresh token available for this session")
+
+        resp = await self._http.post(
+            f"{SQUARELET_BASE}/api/refresh/",
+            json={"refresh": muckrock_refresh},
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+        new_access = data["access_token"]
+        new_refresh = data.get("refresh_token", muckrock_refresh)
+
+        # Update claims in place so subsequent load_access_token calls see the new token
+        if at.claims is None:
+            at.claims = {}
+        at.claims["squarelet_access_token"] = new_access
+        self._muckrock_refresh_by_mcp_token[mcp_token] = new_refresh
+
+        return new_access
+
     async def revoke_token(self, token: AccessToken | RefreshToken) -> None:
         if isinstance(token, AccessToken):
             self._access_tokens.pop(token.token, None)
+            self._muckrock_refresh_by_mcp_token.pop(token.token, None)
         else:
             self._refresh_tokens.pop(token.token, None)

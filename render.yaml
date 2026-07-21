@@ -33,7 +33,7 @@ services:
     region: oregon
     envVars:
       - key: MOSS_API_URL
-        value: https://foia-coach.onrender.com
+        value: https://foia-coach-cxpx.onrender.com
       - key: MCP_SERVER_URL
         value: https://agent-moss-mcp-cxpx.onrender.com
       - key: MUCKROCK_API_URL
