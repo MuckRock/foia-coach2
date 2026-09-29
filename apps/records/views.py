@@ -24,7 +24,8 @@ async def rewrite_query(user_message: str, conversation_history: list[dict]) -> 
     If there is no prior conversation, returns the original message unchanged.
     """
     prior = [
-        m for m in conversation_history
+        m
+        for m in conversation_history
         if not (m["role"] == "user" and m["content"] == user_message)
     ]
     if not prior:
@@ -32,9 +33,7 @@ async def rewrite_query(user_message: str, conversation_history: list[dict]) -> 
 
     recent = prior[-6:]  # last 3 turns
     history_text = "\n".join(
-        f"{m['role'].upper()}: {m['content']}"
-        for m in recent
-        if m.get("content")
+        f"{m['role'].upper()}: {m['content']}" for m in recent if m.get("content")
     )
 
     client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
@@ -63,22 +62,28 @@ async def rewrite_query(user_message: str, conversation_history: list[dict]) -> 
 
 async def embed_query(query: str) -> list[float]:
     client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-    response = await client.embeddings.create(model=settings.EMBEDDING_MODEL, input=query)
+    response = await client.embeddings.create(
+        model=settings.EMBEDDING_MODEL, input=query
+    )
     return response.data[0].embedding
 
 
-async def detect_state(user_message: str, conversation_history: list[dict]) -> str | None:
+async def detect_state(
+    user_message: str, conversation_history: list[dict]
+) -> str | None:
     """
     Detect which US state or jurisdiction is being discussed in the conversation.
     Returns the full name (e.g., 'Colorado', 'District of Columbia') or None if not clearly specified.
     """
     recent = conversation_history[-10:]
     history_text = "\n".join(
-        f"{m['role'].upper()}: {m['content']}"
-        for m in recent
-        if m.get("content")
+        f"{m['role'].upper()}: {m['content']}" for m in recent if m.get("content")
     )
-    context = f"Conversation:\n{history_text}\n\nLatest message: {user_message}" if history_text else f"Message: {user_message}"
+    context = (
+        f"Conversation:\n{history_text}\n\nLatest message: {user_message}"
+        if history_text
+        else f"Message: {user_message}"
+    )
 
     client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
     response = await client.chat.completions.create(
@@ -103,7 +108,9 @@ async def detect_state(user_message: str, conversation_history: list[dict]) -> s
     return None if result.upper() == "UNKNOWN" else result
 
 
-async def retrieve(query: str, query_embedding: list[float], jurisdiction: str | None = None) -> list[dict]:
+async def retrieve(
+    query: str, query_embedding: list[float], jurisdiction: str | None = None
+) -> list[dict]:
     """Run hybrid search using a pre-computed embedding."""
     return await sync_to_async(hybrid_search)(
         query_text=query,
@@ -118,26 +125,31 @@ async def generate_hyde_query(user_message: str, state: str) -> str:
     client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
     response = await client.chat.completions.create(
         model=settings.QUERY_REWRITE_MODEL,
-        messages=[{
-            "role": "system",
-            "content": (
-                f"You are a {state} public records expert. Given a journalist's or researcher's "
-                "question, write a short passage (2-3 sentences) describing the types of "
-                "government records that would be relevant. Use language found in government "
-                "retention schedules — record titles, custodian names, official terminology. "
-                "Output only the passage, nothing else."
-            ),
-        }, {
-            "role": "user",
-            "content": user_message,
-        }],
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    f"You are a {state} public records expert. Given a journalist's or researcher's "
+                    "question, write a short passage (2-3 sentences) describing the types of "
+                    "government records that would be relevant. Use language found in government "
+                    "retention schedules — record titles, custodian names, official terminology. "
+                    "Output only the passage, nothing else."
+                ),
+            },
+            {
+                "role": "user",
+                "content": user_message,
+            },
+        ],
         temperature=0,
         max_tokens=150,
     )
     return response.choices[0].message.content.strip()
 
 
-async def retrieve_documents(query_embedding: list[float], jurisdiction: str | None = None) -> list[dict]:
+async def retrieve_documents(
+    query_embedding: list[float], jurisdiction: str | None = None
+) -> list[dict]:
     return await sync_to_async(document_search)(
         query_embedding=query_embedding,
         jurisdiction=jurisdiction,
@@ -154,7 +166,13 @@ async def _clarifying_stream(message: str):
         "object": "chat.completion.chunk",
         "created": created,
         "model": "agent-moss",
-        "choices": [{"index": 0, "delta": {"role": "assistant", "content": message}, "finish_reason": "stop"}],
+        "choices": [
+            {
+                "index": 0,
+                "delta": {"role": "assistant", "content": message},
+                "finish_reason": "stop",
+            }
+        ],
     }
     yield f"data: {json.dumps(payload)}\n\n"
     yield "data: [DONE]\n\n"
@@ -209,11 +227,13 @@ async def stream_completion(messages: list[dict], citation_map: dict | None = No
             "object": "chat.completion.chunk",
             "created": created,
             "model": "agent-moss",
-            "choices": [{
-                "index": 0,
-                "delta": {"role": "assistant", "content": processed},
-                "finish_reason": "stop",
-            }],
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {"role": "assistant", "content": processed},
+                    "finish_reason": "stop",
+                }
+            ],
         }
         yield f"data: {json.dumps(payload)}\n\n"
     else:
@@ -227,21 +247,25 @@ async def stream_completion(messages: list[dict], citation_map: dict | None = No
                 "object": "chat.completion.chunk",
                 "created": created,
                 "model": "agent-moss",
-                "choices": [{
-                    "index": 0,
-                    "delta": {
-                        "role": delta.role or None,
-                        "content": delta.content or "",
-                    },
-                    "finish_reason": chunk.choices[0].finish_reason,
-                }],
+                "choices": [
+                    {
+                        "index": 0,
+                        "delta": {
+                            "role": delta.role or None,
+                            "content": delta.content or "",
+                        },
+                        "finish_reason": chunk.choices[0].finish_reason,
+                    }
+                ],
             }
             yield f"data: {json.dumps(payload)}\n\n"
 
     yield "data: [DONE]\n\n"
 
 
-async def complete(messages: list[dict], citation_map: dict | None = None) -> JsonResponse:
+async def complete(
+    messages: list[dict], citation_map: dict | None = None
+) -> JsonResponse:
     """Non-streaming completion with optional citation post-processing."""
     client = _llm_client()
     logger.info(
@@ -259,7 +283,9 @@ async def complete(messages: list[dict], citation_map: dict | None = None) -> Js
     if citation_map and data.get("choices"):
         content = data["choices"][0].get("message", {}).get("content", "")
         if content:
-            data["choices"][0]["message"]["content"] = postprocess_citations(content, citation_map)
+            data["choices"][0]["message"]["content"] = postprocess_citations(
+                content, citation_map
+            )
     return JsonResponse(data)
 
 
@@ -292,17 +318,21 @@ class ChatCompletionsView(View):
                     _clarifying_stream(clarifying),
                     content_type="text/event-stream",
                 )
-            return JsonResponse({
-                "id": f"chatcmpl-{uuid.uuid4().hex[:8]}",
-                "object": "chat.completion",
-                "created": int(time.time()),
-                "model": "agent-moss",
-                "choices": [{
-                    "index": 0,
-                    "message": {"role": "assistant", "content": clarifying},
-                    "finish_reason": "stop",
-                }],
-            })
+            return JsonResponse(
+                {
+                    "id": f"chatcmpl-{uuid.uuid4().hex[:8]}",
+                    "object": "chat.completion",
+                    "created": int(time.time()),
+                    "model": "agent-moss",
+                    "choices": [
+                        {
+                            "index": 0,
+                            "message": {"role": "assistant", "content": clarifying},
+                            "finish_reason": "stop",
+                        }
+                    ],
+                }
+            )
 
         retrieval_query, hyde_text = await asyncio.gather(
             rewrite_query(user_message, messages),
@@ -347,7 +377,9 @@ class ChatCompletionsView(View):
             )
 
         try:
-            augmented_messages, citation_map = await build_messages(user_message, records, doc_chunks, messages, state=state)
+            augmented_messages, citation_map = await build_messages(
+                user_message, records, doc_chunks, messages, state=state
+            )
         except RuntimeError as e:
             return JsonResponse({"error": str(e)}, status=500)
 
@@ -371,14 +403,16 @@ class ChatCompletionsView(View):
 
 class ModelsView(View):
     async def get(self, request):
-        return JsonResponse({
-            "object": "list",
-            "data": [
-                {
-                    "id": "agent-moss",
-                    "object": "model",
-                    "created": 0,
-                    "owned_by": "agent-moss",
-                }
-            ],
-        })
+        return JsonResponse(
+            {
+                "object": "list",
+                "data": [
+                    {
+                        "id": "agent-moss",
+                        "object": "model",
+                        "created": 0,
+                        "owned_by": "agent-moss",
+                    }
+                ],
+            }
+        )

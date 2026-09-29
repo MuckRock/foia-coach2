@@ -7,6 +7,7 @@ class SystemPrompt(models.Model):
     Editable system prompt for the FOIA Coach assistant.
     Only one prompt is active at a time.
     """
+
     name = models.CharField(max_length=255)
     content = models.TextField()
     is_active = models.BooleanField(default=False)
@@ -34,6 +35,7 @@ class SystemPrompt(models.Model):
 
 class SourceDocument(models.Model):
     """A source retention schedule PDF."""
+
     filename = models.CharField(max_length=512)
     document_title = models.CharField(max_length=512)
     jurisdiction = models.CharField(max_length=255)
@@ -41,7 +43,9 @@ class SourceDocument(models.Model):
     schedule_number = models.CharField(max_length=50, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     record_count = models.IntegerField(default=0)
-    documentcloud_id = models.CharField(max_length=100, unique=True, null=True, blank=True)
+    documentcloud_id = models.CharField(
+        max_length=100, unique=True, null=True, blank=True
+    )
     documentcloud_url = models.URLField(null=True, blank=True)
     documentcloud_updated_at = models.DateTimeField(null=True, blank=True)
 
@@ -102,7 +106,9 @@ class RetentionRecord(models.Model):
             parts.append(f"Disposition: {self.custodian_requirement}")
         if self.regulatory_citations:
             parts.append(f"Legal citations: {self.regulatory_citations}")
-        parts.append(f"Source: {self.source_document.document_title}, page {self.page_number}")
+        parts.append(
+            f"Source: {self.source_document.document_title}, page {self.page_number}"
+        )
         return "\n".join(parts)
 
 
@@ -113,7 +119,9 @@ class SupportingDocument(models.Model):
     jurisdiction = models.CharField(max_length=255, blank=True)
     chunk_count = models.IntegerField(default=0)
     uploaded_at = models.DateTimeField(auto_now_add=True)
-    documentcloud_id = models.CharField(max_length=100, unique=True, null=True, blank=True)
+    documentcloud_id = models.CharField(
+        max_length=100, unique=True, null=True, blank=True
+    )
     documentcloud_url = models.URLField(null=True, blank=True)
     documentcloud_updated_at = models.DateTimeField(null=True, blank=True)
 
@@ -126,6 +134,7 @@ class SupportingDocument(models.Model):
 
 class NFOICChapter(models.Model):
     """Contact information for an NFOIC chapter serving a particular jurisdiction."""
+
     name = models.CharField(max_length=255)
     jurisdiction = models.CharField(max_length=255)
     website = models.URLField(blank=True)

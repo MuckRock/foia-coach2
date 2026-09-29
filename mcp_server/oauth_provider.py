@@ -16,7 +16,12 @@ from pydantic import AnyUrl
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, RedirectResponse, Response
 
-from .config import MCP_SERVER_URL, SQUARELET_BASE, SQUARELET_CLIENT_ID, SQUARELET_CLIENT_SECRET
+from .config import (
+    MCP_SERVER_URL,
+    SQUARELET_BASE,
+    SQUARELET_CLIENT_ID,
+    SQUARELET_CLIENT_SECRET,
+)
 
 
 class SquareletAuthorizationCode(AuthorizationCode):
@@ -52,7 +57,9 @@ class SquareletOAuthProvider:
 
     # --- MuckRock token exchange ---
 
-    async def _get_muckrock_tokens(self, oidc_access_token: str) -> tuple[str, str | None]:
+    async def _get_muckrock_tokens(
+        self, oidc_access_token: str
+    ) -> tuple[str, str | None]:
         """Exchange a Squarelet OIDC token for a MuckRock API JWT."""
         resp = await self._http.post(
             f"{SQUARELET_BASE}/api/jwt/",
@@ -64,7 +71,9 @@ class SquareletOAuthProvider:
 
     # --- Authorization ---
 
-    async def authorize(self, client: OAuthClientInformationFull, params: AuthorizationParams) -> str:
+    async def authorize(
+        self, client: OAuthClientInformationFull, params: AuthorizationParams
+    ) -> str:
         """Redirect to Squarelet's authorization endpoint."""
         squarelet_state = secrets.token_urlsafe(32)
         self._pending_state[squarelet_state] = {
@@ -76,13 +85,15 @@ class SquareletOAuthProvider:
             "redirect_uri_provided_explicitly": params.redirect_uri_provided_explicitly,
             "resource": params.resource,
         }
-        query = urlencode({
-            "response_type": "code",
-            "client_id": SQUARELET_CLIENT_ID,
-            "redirect_uri": f"{MCP_SERVER_URL}/oauth/callback",
-            "scope": "read write",
-            "state": squarelet_state,
-        })
+        query = urlencode(
+            {
+                "response_type": "code",
+                "client_id": SQUARELET_CLIENT_ID,
+                "redirect_uri": f"{MCP_SERVER_URL}/oauth/callback",
+                "scope": "read write",
+                "state": squarelet_state,
+            }
+        )
         return f"{SQUARELET_BASE}/openid/authorize?{query}"
 
     async def handle_callback(self, request: Request) -> Response:
@@ -120,13 +131,19 @@ class SquareletOAuthProvider:
         oidc_access_token = tokens.get("access_token")
 
         if not oidc_access_token:
-            return HTMLResponse("No access token returned by Squarelet", status_code=500)
+            return HTMLResponse(
+                "No access token returned by Squarelet", status_code=500
+            )
 
         # Exchange OIDC token for MuckRock API JWT
         try:
-            muckrock_access_token, muckrock_refresh_token = await self._get_muckrock_tokens(oidc_access_token)
+            muckrock_access_token, muckrock_refresh_token = (
+                await self._get_muckrock_tokens(oidc_access_token)
+            )
         except Exception as exc:
-            return HTMLResponse(f"MuckRock token exchange failed: {exc}", status_code=500)
+            return HTMLResponse(
+                f"MuckRock token exchange failed: {exc}", status_code=500
+            )
 
         # Generate MCP authorization code
         mcp_code = secrets.token_urlsafe(32)
@@ -137,7 +154,9 @@ class SquareletOAuthProvider:
             client_id=pending["client_id"],
             code_challenge=pending["code_challenge"],
             redirect_uri=AnyUrl(pending["redirect_uri"]),
-            redirect_uri_provided_explicitly=pending["redirect_uri_provided_explicitly"],
+            redirect_uri_provided_explicitly=pending[
+                "redirect_uri_provided_explicitly"
+            ],
             resource=pending["resource"],
             squarelet_access_token=muckrock_access_token,
             squarelet_refresh_token=muckrock_refresh_token,
@@ -164,7 +183,9 @@ class SquareletOAuthProvider:
         return entry
 
     async def exchange_authorization_code(
-        self, client: OAuthClientInformationFull, authorization_code: SquareletAuthorizationCode
+        self,
+        client: OAuthClientInformationFull,
+        authorization_code: SquareletAuthorizationCode,
     ) -> OAuthToken:
         # Single-use: remove code immediately
         self._auth_codes.pop(authorization_code.code, None)
@@ -177,7 +198,9 @@ class SquareletOAuthProvider:
             client_id=client.client_id,
             scopes=authorization_code.scopes,
             expires_at=int(time.time()) + 3600,
-            claims={"squarelet_access_token": authorization_code.squarelet_access_token},
+            claims={
+                "squarelet_access_token": authorization_code.squarelet_access_token
+            },
         )
         self._refresh_tokens[mcp_refresh] = {
             "token": RefreshToken(
@@ -188,7 +211,9 @@ class SquareletOAuthProvider:
             "squarelet_refresh_token": authorization_code.squarelet_refresh_token,
         }
         if authorization_code.squarelet_refresh_token:
-            self._muckrock_refresh_by_mcp_token[mcp_token] = authorization_code.squarelet_refresh_token
+            self._muckrock_refresh_by_mcp_token[mcp_token] = (
+                authorization_code.squarelet_refresh_token
+            )
 
         return OAuthToken(
             access_token=mcp_token,
@@ -225,11 +250,16 @@ class SquareletOAuthProvider:
     ) -> OAuthToken:
         entry = self._refresh_tokens.pop(refresh_token.token, None)
         if entry is None:
-            raise TokenError(error="invalid_grant", error_description="Refresh token not found")
+            raise TokenError(
+                error="invalid_grant", error_description="Refresh token not found"
+            )
 
         muckrock_refresh = entry.get("squarelet_refresh_token")
         if not muckrock_refresh:
-            raise TokenError(error="invalid_grant", error_description="No MuckRock refresh token available")
+            raise TokenError(
+                error="invalid_grant",
+                error_description="No MuckRock refresh token available",
+            )
 
         try:
             resp = await self._http.post(
@@ -245,7 +275,10 @@ class SquareletOAuthProvider:
         new_squarelet_refresh = tokens.get("refresh", muckrock_refresh)
 
         if not new_squarelet_access:
-            raise TokenError(error="invalid_grant", error_description="No access token returned by MuckRock")
+            raise TokenError(
+                error="invalid_grant",
+                error_description="No access token returned by MuckRock",
+            )
 
         use_scopes = scopes or refresh_token.scopes
         mcp_token = secrets.token_urlsafe(32)

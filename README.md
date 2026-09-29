@@ -117,23 +117,23 @@ Use `--replace` to re-import a document that has already been loaded.
 
 All settings are via environment variables:
 
-| Variable | Description | Default |
-|---|---|---|
-| `OPENAI_API_KEY` | OpenAI key — used for embeddings, query rewriting, state detection, HyDE, and import-time extraction regardless of which provider serves `LLM_MODEL` | — |
-| `DATABASE_URL` | PostgreSQL connection string | — |
-| `DJANGO_SECRET_KEY` | Django secret key | — |
-| `LLM_MODEL` | Model for the answer completion | `gpt-4o` |
-| `LLM_BASE_URL` | Leave empty for OpenAI; set to an OpenAI-compatible base URL (e.g. Anthropic) to serve completions elsewhere | — |
-| `LLM_API_KEY` | Key for `LLM_BASE_URL`; falls back to `OPENAI_API_KEY` | — |
-| `LLM_TEMPERATURE` | Completion temperature | `0.3` |
-| `LLM_TEMPERATURE_ENABLED` | Set `False` for models that reject a `temperature` parameter | `True` |
-| `QUERY_REWRITE_MODEL` | Model for query rewriting, state detection, and HyDE | `gpt-4o-mini` |
-| `EMBEDDING_MODEL` | Model for embeddings | `text-embedding-3-small` |
-| `EXTRACTION_MODEL` | Model used by the DocumentCloud import commands | `gpt-5.2` |
-| `DOCUMENTCLOUD_USERNAME` / `DOCUMENTCLOUD_PASSWORD` | Credentials for the `import_*_dc` commands | — |
-| `DJANGO_ALLOWED_HOSTS` | Comma-separated allowed hosts | `*` (local) |
-| `DJANGO_LOG_FILE` | Extra log file path; ignored if the parent directory doesn't exist | — |
-| `CONN_MAX_AGE` | Database connection lifetime, seconds | `60` |
+| Variable                                            | Description                                                                                                                                          | Default                  |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| `OPENAI_API_KEY`                                    | OpenAI key — used for embeddings, query rewriting, state detection, HyDE, and import-time extraction regardless of which provider serves `LLM_MODEL` | —                        |
+| `DATABASE_URL`                                      | PostgreSQL connection string                                                                                                                         | —                        |
+| `DJANGO_SECRET_KEY`                                 | Django secret key                                                                                                                                    | —                        |
+| `LLM_MODEL`                                         | Model for the answer completion                                                                                                                      | `gpt-4o`                 |
+| `LLM_BASE_URL`                                      | Leave empty for OpenAI; set to an OpenAI-compatible base URL (e.g. Anthropic) to serve completions elsewhere                                         | —                        |
+| `LLM_API_KEY`                                       | Key for `LLM_BASE_URL`; falls back to `OPENAI_API_KEY`                                                                                               | —                        |
+| `LLM_TEMPERATURE`                                   | Completion temperature                                                                                                                               | `0.3`                    |
+| `LLM_TEMPERATURE_ENABLED`                           | Set `False` for models that reject a `temperature` parameter                                                                                         | `True`                   |
+| `QUERY_REWRITE_MODEL`                               | Model for query rewriting, state detection, and HyDE                                                                                                 | `gpt-4o-mini`            |
+| `EMBEDDING_MODEL`                                   | Model for embeddings                                                                                                                                 | `text-embedding-3-small` |
+| `EXTRACTION_MODEL`                                  | Model used by the DocumentCloud import commands                                                                                                      | `gpt-5.2`                |
+| `DOCUMENTCLOUD_USERNAME` / `DOCUMENTCLOUD_PASSWORD` | Credentials for the `import_*_dc` commands                                                                                                           | —                        |
+| `DJANGO_ALLOWED_HOSTS`                              | Comma-separated allowed hosts                                                                                                                        | `*` (local)              |
+| `DJANGO_LOG_FILE`                                   | Extra log file path; ignored if the parent directory doesn't exist                                                                                   | —                        |
+| `CONN_MAX_AGE`                                      | Database connection lifetime, seconds                                                                                                                | `60`                     |
 
 ---
 
@@ -146,7 +146,9 @@ OpenAI-compatible chat completions. Accepts standard request body; the `model` f
 ```json
 {
   "model": "agent-moss",
-  "messages": [{"role": "user", "content": "How long must building permits be kept?"}],
+  "messages": [
+    { "role": "user", "content": "How long must building permits be kept?" }
+  ],
   "stream": true
 }
 ```
@@ -162,6 +164,7 @@ Returns the model list (used by LibreChat's model selector).
 The repo includes `render.yaml` for one-click Blueprint deployment.
 
 **Steps:**
+
 1. Push to GitHub
 2. Render → New → Blueprint → select repo
 3. Set `OPENAI_API_KEY` in the Render dashboard

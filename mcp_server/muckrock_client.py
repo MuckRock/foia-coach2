@@ -7,33 +7,59 @@ class MuckRockClient:
     def __init__(self):
         self._client = httpx.AsyncClient(base_url=MUCKROCK_API_URL, timeout=30.0)
 
-    async def _request(self, method: str, path: str, access_token: str, **kwargs) -> httpx.Response:
+    async def _request(
+        self, method: str, path: str, access_token: str, **kwargs
+    ) -> httpx.Response:
         headers = {"Authorization": f"Bearer {access_token}"}
         response = await self._client.request(method, path, headers=headers, **kwargs)
         response.raise_for_status()
         return response
 
-    async def get_jurisdiction_id(self, access_token: str, jurisdiction: str) -> int | None:
+    async def get_jurisdiction_id(
+        self, access_token: str, jurisdiction: str
+    ) -> int | None:
         """Resolve a jurisdiction name like 'Denver, CO' or 'Colorado' to a MuckRock jurisdiction ID."""
         parts = [p.strip() for p in jurisdiction.split(",")]
 
         if len(parts) == 1:
-            resp = await self._request("GET", "/jurisdictions/", access_token, params={"name": parts[0], "level": "s"})
+            resp = await self._request(
+                "GET",
+                "/jurisdictions/",
+                access_token,
+                params={"name": parts[0], "level": "s"},
+            )
             results = resp.json().get("results", [])
             return results[0]["id"] if results else None
         else:
             local_name, state_abbrev = parts[0], parts[1].strip()
-            state_resp = await self._request("GET", "/jurisdictions/", access_token, params={"abbrev": state_abbrev, "level": "s"})
+            state_resp = await self._request(
+                "GET",
+                "/jurisdictions/",
+                access_token,
+                params={"abbrev": state_abbrev, "level": "s"},
+            )
             state_results = state_resp.json().get("results", [])
             if not state_results:
                 return None
             state_id = state_results[0]["id"]
-            local_resp = await self._request("GET", "/jurisdictions/", access_token, params={"name": local_name, "level": "l", "parent": state_id})
+            local_resp = await self._request(
+                "GET",
+                "/jurisdictions/",
+                access_token,
+                params={"name": local_name, "level": "l", "parent": state_id},
+            )
             local_results = local_resp.json().get("results", [])
-            exact = [r for r in local_results if r["name"].lower() == local_name.lower()]
+            exact = [
+                r for r in local_results if r["name"].lower() == local_name.lower()
+            ]
             return exact[0]["id"] if exact else None
 
-    async def search_agencies(self, access_token: str, query: str | None = None, jurisdiction_id: int | None = None) -> dict:
+    async def search_agencies(
+        self,
+        access_token: str,
+        query: str | None = None,
+        jurisdiction_id: int | None = None,
+    ) -> dict:
         params = {}
         if query:
             params["search"] = query
@@ -47,7 +73,12 @@ class MuckRockClient:
         return response.json()
 
     async def file_request(
-        self, access_token: str, agency_id: int, title: str, document_request: str, full_text: str = ""
+        self,
+        access_token: str,
+        agency_id: int,
+        title: str,
+        document_request: str,
+        full_text: str = "",
     ) -> dict:
         payload = {
             "agencies": [agency_id],
@@ -67,7 +98,13 @@ class MuckRockClient:
         me = await self.get_me(access_token)
         return me["id"]
 
-    async def my_requests(self, access_token: str, user_id: int | None = None, status: str | None = None, page_size: int = 10) -> dict:
+    async def my_requests(
+        self,
+        access_token: str,
+        user_id: int | None = None,
+        status: str | None = None,
+        page_size: int = 10,
+    ) -> dict:
         if user_id is None:
             user_id = await self._get_user_id(access_token)
         params = {"page_size": page_size, "user": user_id}

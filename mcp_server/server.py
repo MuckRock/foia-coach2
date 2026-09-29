@@ -42,7 +42,9 @@ moss = MossClient()
 muckrock = MuckRockClient()
 
 
-async def _muckrock_call(fn: Callable[..., Coroutine[Any, Any, Any]], *args, **kwargs) -> Any:
+async def _muckrock_call(
+    fn: Callable[..., Coroutine[Any, Any, Any]], *args, **kwargs
+) -> Any:
     """Call a MuckRock client method with the current session token.
 
     On 401, refreshes the MuckRock JWT via the provider and retries once —
@@ -78,6 +80,7 @@ async def oauth_callback(request: Request) -> Response:
 
 
 # --- Moss tools (record discovery) ---
+
 
 @mcp.tool()
 async def search_records(query: str, jurisdiction: str) -> str:
@@ -115,8 +118,11 @@ async def chat(messages: list[dict]) -> str:
 
 # --- MuckRock tools (FOIA workflow) ---
 
+
 @mcp.tool()
-async def search_agencies(query: str, jurisdiction: str | None = None, ctx: Context = None) -> str:
+async def search_agencies(
+    query: str, jurisdiction: str | None = None, ctx: Context = None
+) -> str:
     """Search for government agencies on MuckRock.
 
     Use this to find the agency you need to send a FOIA request to.
@@ -126,36 +132,48 @@ async def search_agencies(query: str, jurisdiction: str | None = None, ctx: Cont
     """
     jurisdiction_id = None
     if jurisdiction:
-        jurisdiction_id = await _muckrock_call(muckrock.get_jurisdiction_id, jurisdiction)
+        jurisdiction_id = await _muckrock_call(
+            muckrock.get_jurisdiction_id, jurisdiction
+        )
 
     result = await _muckrock_call(muckrock.search_agencies, query, jurisdiction_id)
 
     if result.get("count", 0) == 0:
         if ctx is not None:
             try:
-                await ctx.info(f"No results for '{query}', asking client for alternatives via sampling")
+                await ctx.info(
+                    f"No results for '{query}', asking client for alternatives via sampling"
+                )
                 sampling_result = await ctx.session.create_message(
-                    messages=[SamplingMessage(
-                        role="user",
-                        content=TextContent(
-                            type="text",
-                            text=(
-                                f"A user is searching for a government agency on MuckRock related to: \"{query}\"."
-                                " Suggest 3 alternative agency name search terms that might match "
-                                "(e.g. synonyms or common naming conventions used by government agencies). "
-                                "Reply with just the terms, one per line, nothing else."
+                    messages=[
+                        SamplingMessage(
+                            role="user",
+                            content=TextContent(
+                                type="text",
+                                text=(
+                                    f'A user is searching for a government agency on MuckRock related to: "{query}".'
+                                    " Suggest 3 alternative agency name search terms that might match "
+                                    "(e.g. synonyms or common naming conventions used by government agencies). "
+                                    "Reply with just the terms, one per line, nothing else."
+                                ),
                             ),
-                        ),
-                    )],
+                        )
+                    ],
                     max_tokens=100,
                 )
                 alternatives_text = sampling_result.content.text.strip()
-                await ctx.info(f"Sampling suggested alternatives: {alternatives_text!r}")
-                alternatives = [t.strip() for t in alternatives_text.splitlines() if t.strip()]
+                await ctx.info(
+                    f"Sampling suggested alternatives: {alternatives_text!r}"
+                )
+                alternatives = [
+                    t.strip() for t in alternatives_text.splitlines() if t.strip()
+                ]
 
                 for term in alternatives:
                     await ctx.info(f"Trying alternative term: '{term}'")
-                    result = await _muckrock_call(muckrock.search_agencies, term, jurisdiction_id)
+                    result = await _muckrock_call(
+                        muckrock.search_agencies, term, jurisdiction_id
+                    )
                     if result.get("count", 0) > 0:
                         result["search_term_used"] = term
                         break
@@ -163,7 +181,9 @@ async def search_agencies(query: str, jurisdiction: str | None = None, ctx: Cont
                 await ctx.warning(f"Sampling failed: {e}")
 
         if result.get("count", 0) == 0 and jurisdiction_id:
-            result = await _muckrock_call(muckrock.search_agencies, None, jurisdiction_id)
+            result = await _muckrock_call(
+                muckrock.search_agencies, None, jurisdiction_id
+            )
 
     return json.dumps(result, indent=2)
 
@@ -180,7 +200,9 @@ async def get_agency(agency_id: int) -> str:
 
 
 @mcp.tool()
-async def file_request(agency_id: int, title: str, document_request: str, full_text: str = "") -> str:
+async def file_request(
+    agency_id: int, title: str, document_request: str, full_text: str = ""
+) -> str:
     """File a FOIA/public records request through MuckRock.
 
     IMPORTANT: Always confirm with the user before calling this tool.
@@ -194,12 +216,16 @@ async def file_request(agency_id: int, title: str, document_request: str, full_t
 
     Returns the created request details including tracking URL.
     """
-    result = await _muckrock_call(muckrock.file_request, agency_id, title, document_request, full_text)
+    result = await _muckrock_call(
+        muckrock.file_request, agency_id, title, document_request, full_text
+    )
     return json.dumps(result, indent=2)
 
 
 @mcp.tool()
-async def my_requests(user_id: int | None = None, status: str | None = None, page_size: int = 10) -> str:
+async def my_requests(
+    user_id: int | None = None, status: str | None = None, page_size: int = 10
+) -> str:
     """List FOIA requests on MuckRock for the authenticated user.
 
     Optionally filter by user_id and/or status: 'submitted', 'ack', 'processed',
@@ -237,5 +263,7 @@ async def search_requests(
 
     Returns a list of matching public requests.
     """
-    result = await _muckrock_call(muckrock.search_requests, query, agency, jurisdiction, status)
+    result = await _muckrock_call(
+        muckrock.search_requests, query, agency, jurisdiction, status
+    )
     return json.dumps(result, indent=2)

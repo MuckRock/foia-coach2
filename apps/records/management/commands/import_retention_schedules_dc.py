@@ -8,6 +8,7 @@ Usage:
         [--type "Retention Schedule"] \
         [--force-reparse]
 """
+
 import json
 import re
 import time
@@ -18,7 +19,12 @@ from django.core.management.base import BaseCommand
 import openai
 
 from apps.records.models import RetentionRecord, SourceDocument
-from ._dc_utils import fetch_pages, get_dc_client, get_project_documents, pages_to_llm_text
+from ._dc_utils import (
+    fetch_pages,
+    get_dc_client,
+    get_project_documents,
+    pages_to_llm_text,
+)
 
 
 BATCH_SIZE = 100
@@ -72,7 +78,9 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--project", required=True, help="DocumentCloud project ID")
-        parser.add_argument("--jurisdiction", required=True, help="Jurisdiction (e.g. 'Colorado')")
+        parser.add_argument(
+            "--jurisdiction", required=True, help="Jurisdiction (e.g. 'Colorado')"
+        )
         parser.add_argument(
             "--type",
             dest="doc_type",
@@ -97,7 +105,9 @@ class Command(BaseCommand):
         openai_client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
 
         docs = list(get_project_documents(dc_client, project_id, doc_type))
-        self.stdout.write(f"Found {len(docs)} document(s) with Type='{doc_type}' in project {project_id}.")
+        self.stdout.write(
+            f"Found {len(docs)} document(s) with Type='{doc_type}' in project {project_id}."
+        )
 
         total_created = 0
         total_updated = 0
@@ -108,14 +118,19 @@ class Command(BaseCommand):
 
             existing = SourceDocument.objects.filter(documentcloud_id=dc_id).first()
             if existing and not force_reparse:
-                if existing.documentcloud_updated_at and existing.documentcloud_updated_at >= dc_updated_at:
+                if (
+                    existing.documentcloud_updated_at
+                    and existing.documentcloud_updated_at >= dc_updated_at
+                ):
                     self.stdout.write(f"  Skipping '{document.title}' (unchanged).")
                     continue
 
             self.stdout.write(f"  Fetching '{document.title}'...")
             pages = fetch_pages(document)
 
-            self.stdout.write(f"  Extracting records via LLM ({len(pages)} pages in batches of {PAGE_BATCH_SIZE})...")
+            self.stdout.write(
+                f"  Extracting records via LLM ({len(pages)} pages in batches of {PAGE_BATCH_SIZE})..."
+            )
             records_data = []
             for batch_start in range(0, len(pages), PAGE_BATCH_SIZE):
                 batch = pages[batch_start : batch_start + PAGE_BATCH_SIZE]
@@ -126,7 +141,11 @@ class Command(BaseCommand):
                 records_data.extend(batch_records)
 
             if not records_data:
-                self.stdout.write(self.style.WARNING(f"    No records extracted for '{document.title}'."))
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"    No records extracted for '{document.title}'."
+                    )
+                )
                 continue
 
             schedule_number, entity_type = parse_schedule_info(document.title)
@@ -152,22 +171,24 @@ class Command(BaseCommand):
                 if not record_title:
                     continue
                 period = raw.get("minimum_retention_period", "").strip()
-                new_records.append(RetentionRecord(
-                    source_document=source_doc,
-                    record_number=raw.get("record_number", ""),
-                    record_title=record_title,
-                    record_description=raw.get("record_description", ""),
-                    custodian_requirement=raw.get(
-                        "record_custodian_preservation_destruction_requirement", ""
-                    ),
-                    minimum_retention_period=period,
-                    regulatory_citations=raw.get(
-                        "regulatory_citation_statutes_rules_notations", ""
-                    ),
-                    page_number=raw.get("page_number"),
-                    is_cross_reference=period.startswith("See "),
-                    is_permanent=period.strip().lower() == "permanent",
-                ))
+                new_records.append(
+                    RetentionRecord(
+                        source_document=source_doc,
+                        record_number=raw.get("record_number", ""),
+                        record_title=record_title,
+                        record_description=raw.get("record_description", ""),
+                        custodian_requirement=raw.get(
+                            "record_custodian_preservation_destruction_requirement", ""
+                        ),
+                        minimum_retention_period=period,
+                        regulatory_citations=raw.get(
+                            "regulatory_citation_statutes_rules_notations", ""
+                        ),
+                        page_number=raw.get("page_number"),
+                        is_cross_reference=period.startswith("See "),
+                        is_permanent=period.strip().lower() == "permanent",
+                    )
+                )
 
             RetentionRecord.objects.bulk_create(new_records)
             source_doc.record_count = len(new_records)

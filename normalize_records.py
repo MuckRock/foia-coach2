@@ -25,8 +25,10 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
+
 def to_str(v) -> str:
     return "" if v is None else str(v).strip()
+
 
 def to_page(v) -> int | None:
     if v is None:
@@ -35,6 +37,7 @@ def to_page(v) -> int | None:
         return int(v)
     except (ValueError, TypeError):
         return None
+
 
 def pdf_filename_to_title(filename: str) -> str:
     """Convert 'Governor_Jared_Polis_Email_Retention_Policy.pdf' → readable title."""
@@ -46,30 +49,30 @@ def pdf_filename_to_title(filename: str) -> str:
 
 FIELD_MAP = {
     # Title Case variants (SCHEDULE 75, Congressional 3/4, etc.)
-    "Record Title":                                       "record_title",
-    "Record Description":                                 "record_description",
+    "Record Title": "record_title",
+    "Record Description": "record_description",
     "Record Custodian/Preservation/Destruction Requirement": "record_custodian_preservation_destruction_requirement",
-    "Minimum Retention Period":                           "minimum_retention_period",
-    "Regulatory Citation/Statutes/Rules/Notations":       "regulatory_citation_statutes_rules_notations",
-    "Document Title":                                     "document_title",
-    "Page Number":                                        "page_number",
+    "Minimum Retention Period": "minimum_retention_period",
+    "Regulatory Citation/Statutes/Rules/Notations": "regulatory_citation_statutes_rules_notations",
+    "Document Title": "document_title",
+    "Page Number": "page_number",
     # lowercase variants (Congressional 2/3, Schedule 17)
-    "document title":                                     "document_title",
-    "page number":                                        "page_number",
+    "document title": "document_title",
+    "page number": "page_number",
     # record_number aliases
-    "section_number":   "record_number",    # SCHEDULE 15, 10 Cemetery
-    "item_number":      "record_number",    # Schedule 11 District/Personnel
-    "section":          "record_number",    # SCHEDULE 105, 100, SCHEDULE 30 "Section"
-    "Section":          "record_number",    # SCHEDULE 30 (Title Case)
-    "schedule_item_no": "record_number",    # Colorado Sheriff
+    "section_number": "record_number",  # SCHEDULE 15, 10 Cemetery
+    "item_number": "record_number",  # Schedule 11 District/Personnel
+    "section": "record_number",  # SCHEDULE 105, 100, SCHEDULE 30 "Section"
+    "Section": "record_number",  # SCHEDULE 30 (Title Case)
+    "schedule_item_no": "record_number",  # Colorado Sheriff
     # regulatory_citation shorthand (Schedule 7 GA/Financial, Schedule 8/9/10)
     "regulatory_citation": "regulatory_citation_statutes_rules_notations",
 }
 
 # Keys to drop (metadata, duplicates, non-standard)
 DROP_KEYS = {
-    "source_document",   # PDF filename in entry (Governor Polis / LCS / DPA / OEDIT)
-    "source file",       # Congressional 3
+    "source_document",  # PDF filename in entry (Governor Polis / LCS / DPA / OEDIT)
+    "source file",  # Congressional 3
     "schedule_section",  # County Treasurer / Public Trustees
     "source_document_title",  # handled below
 }
@@ -102,16 +105,18 @@ def normalize_entry(entry: dict, fallback_document_title: str = "") -> dict:
         doc_title = fallback_document_title
 
     return {
-        "record_number":   to_str(mapped.get("record_number", "")),
-        "record_title":    to_str(mapped.get("record_title", "")),
+        "record_number": to_str(mapped.get("record_number", "")),
+        "record_title": to_str(mapped.get("record_title", "")),
         "record_description": to_str(mapped.get("record_description", "")),
-        "record_custodian_preservation_destruction_requirement":
-            to_str(mapped.get("record_custodian_preservation_destruction_requirement", "")),
+        "record_custodian_preservation_destruction_requirement": to_str(
+            mapped.get("record_custodian_preservation_destruction_requirement", "")
+        ),
         "minimum_retention_period": to_str(mapped.get("minimum_retention_period", "")),
-        "regulatory_citation_statutes_rules_notations":
-            to_str(mapped.get("regulatory_citation_statutes_rules_notations", "")),
-        "page_number":     to_page(mapped.get("page_number")),
-        "document_title":  doc_title,
+        "regulatory_citation_statutes_rules_notations": to_str(
+            mapped.get("regulatory_citation_statutes_rules_notations", "")
+        ),
+        "page_number": to_page(mapped.get("page_number")),
+        "document_title": doc_title,
     }
 
 
@@ -169,6 +174,7 @@ def get_entries(data: dict | list) -> list[dict]:
 
 # ── Per-file processing ───────────────────────────────────────────────────────
 
+
 def process_file(input_path: Path, output_path: Path) -> int:
     with open(input_path, encoding="utf-8") as f:
         data = json.load(f)
@@ -179,7 +185,9 @@ def process_file(input_path: Path, output_path: Path) -> int:
         return 0
 
     # document_title fallback for entries that don't carry one
-    fallback_title = get_document_title(data, input_path.name) if isinstance(data, dict) else ""
+    fallback_title = (
+        get_document_title(data, input_path.name) if isinstance(data, dict) else ""
+    )
 
     normalized = [normalize_entry(e, fallback_title) for e in raw_entries]
 
@@ -190,6 +198,7 @@ def process_file(input_path: Path, output_path: Path) -> int:
 
 
 # ── Main ─────────────────────────────────────────────────────────────────────
+
 
 def main():
     files = sorted(INPUT_DIR.glob("*.json"))

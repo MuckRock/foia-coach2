@@ -16,16 +16,16 @@ The service is deployed on Render alongside LibreChat.
 
 Each parsed record from the retention schedule JSON has the following fields:
 
-| Field | Type | Notes |
-|---|---|---|
-| `record_number` | string | e.g. `"1.50"`, `"2-1"`, `"General Description"` |
-| `record_title` | string | Short name for the record type |
-| `record_description` | string | Full narrative description |
-| `record_custodian_preservation_destruction_requirement` | string | Disposition instructions |
-| `minimum_retention_period` | string | Free-text period, e.g. `"20 years"`, `"Permanent"`, `"See Schedule 7"` |
-| `regulatory_citation_statutes_rules_notations` | string | Legal citations and cross-references |
-| `page_number` | integer | Page in source PDF |
-| `document_title` | string | e.g. `"SCHEDULE NO. 1 - BUILDING AND STRUCTURE RECORDS (Colorado Special Districts)"` |
+| Field                                                   | Type    | Notes                                                                                 |
+| ------------------------------------------------------- | ------- | ------------------------------------------------------------------------------------- |
+| `record_number`                                         | string  | e.g. `"1.50"`, `"2-1"`, `"General Description"`                                       |
+| `record_title`                                          | string  | Short name for the record type                                                        |
+| `record_description`                                    | string  | Full narrative description                                                            |
+| `record_custodian_preservation_destruction_requirement` | string  | Disposition instructions                                                              |
+| `minimum_retention_period`                              | string  | Free-text period, e.g. `"20 years"`, `"Permanent"`, `"See Schedule 7"`                |
+| `regulatory_citation_statutes_rules_notations`          | string  | Legal citations and cross-references                                                  |
+| `page_number`                                           | integer | Page in source PDF                                                                    |
+| `document_title`                                        | string  | e.g. `"SCHEDULE NO. 1 - BUILDING AND STRUCTURE RECORDS (Colorado Special Districts)"` |
 
 ### Django models
 
@@ -206,6 +206,7 @@ python manage.py generate_embeddings [--source-document <id>] [--force]
 5. Print progress and a final summary.
 
 **Notes:**
+
 - Skip cross-reference records (`is_cross_reference=True`) — they contain no substantive
   content to embed, only pointers to other schedules.
 - Rate-limit awareness: add a short sleep between batches to avoid hitting OpenAI rate limits.
@@ -342,12 +343,15 @@ The endpoint accepts the standard OpenAI chat completions request body:
 
 ```json
 {
-    "model": "foia-coach",
-    "messages": [
-        {"role": "system", "content": "..."},
-        {"role": "user", "content": "How long do I need to keep building permits?"}
-    ],
-    "stream": true
+  "model": "foia-coach",
+  "messages": [
+    { "role": "system", "content": "..." },
+    {
+      "role": "user",
+      "content": "How long do I need to keep building permits?"
+    }
+  ],
+  "stream": true
 }
 ```
 
@@ -578,15 +582,15 @@ class SystemPromptAdmin(admin.ModelAdmin):
 
 All sensitive values and environment-specific settings via environment variables:
 
-| Variable | Description |
-|---|---|
-| `OPENAI_API_KEY` | Used for embeddings and LLM completions |
-| `LLM_MODEL` | Model to use for completions, default `gpt-5.2` |
-| `EMBEDDING_MODEL` | Model for embeddings, default `text-embedding-3-small` |
-| `DATABASE_URL` | PostgreSQL connection string (Render provides this) |
-| `DJANGO_SECRET_KEY` | Standard Django secret key |
-| `ALLOWED_HOSTS` | Render service hostname |
-| `DEBUG` | `False` in production |
+| Variable            | Description                                            |
+| ------------------- | ------------------------------------------------------ |
+| `OPENAI_API_KEY`    | Used for embeddings and LLM completions                |
+| `LLM_MODEL`         | Model to use for completions, default `gpt-5.2`        |
+| `EMBEDDING_MODEL`   | Model for embeddings, default `text-embedding-3-small` |
+| `DATABASE_URL`      | PostgreSQL connection string (Render provides this)    |
+| `DJANGO_SECRET_KEY` | Standard Django secret key                             |
+| `ALLOWED_HOSTS`     | Render service hostname                                |
+| `DEBUG`             | `False` in production                                  |
 
 ---
 

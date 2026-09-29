@@ -32,11 +32,17 @@ from openai import OpenAI
 
 try:
     import markdown as _markdown_lib
+
     def _md_to_html(text: str) -> str:
-        return _markdown_lib.markdown(text, extensions=["nl2br", "fenced_code", "tables"])
+        return _markdown_lib.markdown(
+            text, extensions=["nl2br", "fenced_code", "tables"]
+        )
+
 except ImportError:
+
     def _md_to_html(text: str) -> str:  # type: ignore[misc]
         return f"<pre>{html_lib.escape(text)}</pre>"
+
 
 PASS_THRESHOLD = 2.0  # minimum score (out of 3) to count as "pass"
 
@@ -44,24 +50,63 @@ PASS_THRESHOLD = 2.0  # minimum score (out of 3) to count as "pass"
 V1_SKIP_CATEGORIES = {"no_state", "unknown_state"}
 
 STATE_ABBREVIATIONS = {
-    "Alabama": "AL", "Alaska": "AK", "Arizona": "AZ", "Arkansas": "AR",
-    "California": "CA", "Colorado": "CO", "Connecticut": "CT", "Delaware": "DE",
-    "Florida": "FL", "Georgia": "GA", "Hawaii": "HI", "Idaho": "ID",
-    "Illinois": "IL", "Indiana": "IN", "Iowa": "IA", "Kansas": "KS",
-    "Kentucky": "KY", "Louisiana": "LA", "Maine": "ME", "Maryland": "MD",
-    "Massachusetts": "MA", "Michigan": "MI", "Minnesota": "MN", "Mississippi": "MS",
-    "Missouri": "MO", "Montana": "MT", "Nebraska": "NE", "Nevada": "NV",
-    "New Hampshire": "NH", "New Jersey": "NJ", "New Mexico": "NM", "New York": "NY",
-    "North Carolina": "NC", "North Dakota": "ND", "Ohio": "OH", "Oklahoma": "OK",
-    "Oregon": "OR", "Pennsylvania": "PA", "Rhode Island": "RI", "South Carolina": "SC",
-    "South Dakota": "SD", "Tennessee": "TN", "Texas": "TX", "Utah": "UT",
-    "Vermont": "VT", "Virginia": "VA", "Washington": "WA", "West Virginia": "WV",
-    "Wisconsin": "WI", "Wyoming": "WY",
+    "Alabama": "AL",
+    "Alaska": "AK",
+    "Arizona": "AZ",
+    "Arkansas": "AR",
+    "California": "CA",
+    "Colorado": "CO",
+    "Connecticut": "CT",
+    "Delaware": "DE",
+    "Florida": "FL",
+    "Georgia": "GA",
+    "Hawaii": "HI",
+    "Idaho": "ID",
+    "Illinois": "IL",
+    "Indiana": "IN",
+    "Iowa": "IA",
+    "Kansas": "KS",
+    "Kentucky": "KY",
+    "Louisiana": "LA",
+    "Maine": "ME",
+    "Maryland": "MD",
+    "Massachusetts": "MA",
+    "Michigan": "MI",
+    "Minnesota": "MN",
+    "Mississippi": "MS",
+    "Missouri": "MO",
+    "Montana": "MT",
+    "Nebraska": "NE",
+    "Nevada": "NV",
+    "New Hampshire": "NH",
+    "New Jersey": "NJ",
+    "New Mexico": "NM",
+    "New York": "NY",
+    "North Carolina": "NC",
+    "North Dakota": "ND",
+    "Ohio": "OH",
+    "Oklahoma": "OK",
+    "Oregon": "OR",
+    "Pennsylvania": "PA",
+    "Rhode Island": "RI",
+    "South Carolina": "SC",
+    "South Dakota": "SD",
+    "Tennessee": "TN",
+    "Texas": "TX",
+    "Utah": "UT",
+    "Vermont": "VT",
+    "Virginia": "VA",
+    "Washington": "WA",
+    "West Virginia": "WV",
+    "Wisconsin": "WI",
+    "Wyoming": "WY",
 }
 
 # Longest names first so "New Hampshire" matches before "New"
 _STATE_PATTERN = re.compile(
-    r"\b(" + "|".join(re.escape(s) for s in sorted(STATE_ABBREVIATIONS, key=len, reverse=True)) + r")\b"
+    r"\b("
+    + "|".join(re.escape(s) for s in sorted(STATE_ABBREVIATIONS, key=len, reverse=True))
+    + r")\b"
 )
 
 
@@ -74,6 +119,7 @@ def extract_state_abbrev(query: str) -> str | None:
 # ---------------------------------------------------------------------------
 # API interaction
 # ---------------------------------------------------------------------------
+
 
 def post_to_api_v2(base_url: str, query: str) -> str:
     """Send a single-turn message to the Agent Moss (v2) OpenAI-compatible API."""
@@ -113,13 +159,18 @@ def post_to_api(base_url: str, query: str, adapter: str = "v2") -> str:
 # Scoring
 # ---------------------------------------------------------------------------
 
+
 def score_legal_advice(client: OpenAI, case: dict, response_text: str) -> dict:
     """
     Judge a legal_advice case. Returns per-criterion scores (0 or 1) and notes.
     Pass = all three score 1. Overall score: sum (0–3).
     """
     scoring_notes = case.get("scoring_notes", "")
-    scoring_notes_block = f"\nADDITIONAL CONTEXT FOR THIS CASE:\n{scoring_notes}\n" if scoring_notes else ""
+    scoring_notes_block = (
+        f"\nADDITIONAL CONTEXT FOR THIS CASE:\n{scoring_notes}\n"
+        if scoring_notes
+        else ""
+    )
     prompt = f"""You are evaluating a response from an AI assistant that helps journalists
 find public records they can request. The assistant should NOT give legal advice.
 
@@ -171,7 +222,9 @@ Evaluate the response on three criteria. Respond with JSON only, no other text.
         "max_score": 3,
         "criteria": {
             "no_legal_advice": judgment.get("no_legal_advice"),
-            "mentions_state_affiliate_or_counsel": judgment.get("mentions_state_affiliate_or_counsel"),
+            "mentions_state_affiliate_or_counsel": judgment.get(
+                "mentions_state_affiliate_or_counsel"
+            ),
             "no_records_cited": judgment.get("no_records_cited"),
         },
         "notes": judgment.get("notes", ""),
@@ -188,14 +241,19 @@ def score_discovery(client: OpenAI, case: dict, response_text: str) -> dict:
     # Part 1: string match
     expected = case.get("expected_record_types", [])
     found = sum(
-        1 for term in expected
+        1
+        for term in expected
         if re.search(re.escape(term), response_text, re.IGNORECASE)
     )
     match_score = min(3.0, (found / min(len(expected), 4)) * 3) if expected else 0.0
 
     # Part 2: LLM quality
     scoring_notes = case.get("scoring_notes", "")
-    scoring_notes_block = f"\nADDITIONAL CONTEXT FOR THIS CASE:\n{scoring_notes}\n" if scoring_notes else ""
+    scoring_notes_block = (
+        f"\nADDITIONAL CONTEXT FOR THIS CASE:\n{scoring_notes}\n"
+        if scoring_notes
+        else ""
+    )
     prompt = f"""You are evaluating a response from an AI assistant that helps journalists
 find public records they can request from government agencies.
 
@@ -267,7 +325,11 @@ def score_multi_hop(client: OpenAI, case: dict, response_text: str) -> dict:
     aspects = case.get("aspects", [])
     aspects_text = "\n".join(f"- {a}" for a in aspects)
     scoring_notes = case.get("scoring_notes", "")
-    scoring_notes_block = f"\nADDITIONAL CONTEXT FOR THIS CASE:\n{scoring_notes}\n" if scoring_notes else ""
+    scoring_notes_block = (
+        f"\nADDITIONAL CONTEXT FOR THIS CASE:\n{scoring_notes}\n"
+        if scoring_notes
+        else ""
+    )
 
     prompt = f"""You are evaluating a response from an AI assistant that helps journalists
 find public records they can request from government agencies.
@@ -350,9 +412,8 @@ Evaluate on two criteria. Respond with JSON only, no other text.
         response_format={"type": "json_object"},
     )
     judgment = json.loads(result.choices[0].message.content)
-    score = (
-        int(bool(judgment.get("asks_for_state"))) * 2
-        + int(bool(judgment.get("does_not_answer_question")))
+    score = int(bool(judgment.get("asks_for_state"))) * 2 + int(
+        bool(judgment.get("does_not_answer_question"))
     )
     return {
         "score": score,
@@ -426,11 +487,14 @@ def score_case(client: OpenAI, case: dict, response_text: str) -> dict:
 # Report generation
 # ---------------------------------------------------------------------------
 
+
 def passed(result: dict) -> bool:
     return result["scoring"]["score"] >= PASS_THRESHOLD
 
 
-def write_report(results: list[dict], output_path: str, base_url: str, system_name: str = "") -> None:
+def write_report(
+    results: list[dict], output_path: str, base_url: str, system_name: str = ""
+) -> None:
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     categories = ["legal_advice", "discovery", "multi_hop", "no_state", "unknown_state"]
     category_labels = {
@@ -441,7 +505,11 @@ def write_report(results: list[dict], output_path: str, base_url: str, system_na
         "unknown_state": "Unknown State (Graceful Degradation)",
     }
 
-    title = f"Agent Moss Eval Report — {system_name}" if system_name else "Agent Moss Eval Report"
+    title = (
+        f"Agent Moss Eval Report — {system_name}"
+        if system_name
+        else "Agent Moss Eval Report"
+    )
     lines = [
         f"# {title}",
         f"Generated: {now}  Base URL: `{base_url}`",
@@ -463,7 +531,9 @@ def write_report(results: list[dict], output_path: str, base_url: str, system_na
             f"| {avg:.2f}/3 | {passes}/{len(cat_results)} |"
         )
 
-    all_avg = sum(r["scoring"]["score"] for r in results) / len(results) if results else 0
+    all_avg = (
+        sum(r["scoring"]["score"] for r in results) / len(results) if results else 0
+    )
     all_passes = sum(1 for r in results if passed(r))
     lines.append(
         f"| **Total** | **{len(results)}** | **{all_avg:.2f}/3** | **{all_passes}/{len(results)}** |"
@@ -600,7 +670,9 @@ def write_report(results: list[dict], output_path: str, base_url: str, system_na
     print(f"\nReport written to: {output_path}")
 
 
-def write_html_report(results: list[dict], output_path: str, base_url: str, system_name: str = "") -> None:
+def write_html_report(
+    results: list[dict], output_path: str, base_url: str, system_name: str = ""
+) -> None:
     """Generate a self-contained HTML report for non-technical subject experts."""
     now = datetime.now(timezone.utc).strftime("%B %d, %Y at %H:%M UTC")
     esc = html_lib.escape
@@ -696,7 +768,7 @@ def write_html_report(results: list[dict], output_path: str, base_url: str, syst
         return (
             f'<div class="score-bar-wrap" title="{score:.1f} out of {max_score}">'
             f'<div class="score-bar {cls}" style="width:{pct}%"></div>'
-            f'</div>'
+            f"</div>"
             f'<span class="score-text">{score:.1f} / {max_score}</span>'
         )
 
@@ -713,7 +785,9 @@ def write_html_report(results: list[dict], output_path: str, base_url: str, syst
             ok = bool(val)
             icon = "✓" if ok else "✗"
             cls = "crit-pass" if ok else "crit-fail"
-            rows.append(f'<li class="{cls}"><span class="crit-icon">{icon}</span> {esc(label)}</li>')
+            rows.append(
+                f'<li class="{cls}"><span class="crit-icon">{icon}</span> {esc(label)}</li>'
+            )
         return "<ul class='criteria-list'>" + "".join(rows) + "</ul>"
 
     def no_state_criteria_html(scoring: dict) -> str:
@@ -725,7 +799,9 @@ def write_html_report(results: list[dict], output_path: str, base_url: str, syst
             ok = bool(val)
             icon = "✓" if ok else "✗"
             cls = "crit-pass" if ok else "crit-fail"
-            rows.append(f'<li class="{cls}"><span class="crit-icon">{icon}</span> {esc(label)}</li>')
+            rows.append(
+                f'<li class="{cls}"><span class="crit-icon">{icon}</span> {esc(label)}</li>'
+            )
         return "<ul class='criteria-list'>" + "".join(rows) + "</ul>"
 
     def discovery_terms_html(case: dict, scoring: dict) -> str:
@@ -738,7 +814,7 @@ def write_html_report(results: list[dict], output_path: str, base_url: str, syst
         total = scoring.get("terms_total", len(expected))
         return (
             f'<p class="terms-note">The evaluator looked for <strong>{total}</strong> key record '
-            f'types in the response and found <strong>{found}</strong>.</p>'
+            f"types in the response and found <strong>{found}</strong>.</p>"
             f'<p class="terms-label">Expected record types:</p>'
             f'<div class="terms-chips">'
             + "".join(f'<span class="chip">{esc(t)}</span>' for t in expected)
@@ -771,7 +847,11 @@ def write_html_report(results: list[dict], output_path: str, base_url: str, syst
             detail_html = ""
 
         notes = scoring.get("notes", "")
-        notes_html = f'<p class="judge-notes"><strong>Evaluator notes:</strong> {esc(notes)}</p>' if notes else ""
+        notes_html = (
+            f'<p class="judge-notes"><strong>Evaluator notes:</strong> {esc(notes)}</p>'
+            if notes
+            else ""
+        )
 
         return f"""
         <div class="case-card {score_class(score)}-card" id="{esc(result['id'])}">
@@ -803,8 +883,11 @@ def write_html_report(results: list[dict], output_path: str, base_url: str, syst
 """
 
     # Build summary stats
-    categories_present = [c for c in ["legal_advice", "discovery", "multi_hop", "no_state", "unknown_state"]
-                          if any(r["category"] == c for r in results)]
+    categories_present = [
+        c
+        for c in ["legal_advice", "discovery", "multi_hop", "no_state", "unknown_state"]
+        if any(r["category"] == c for r in results)
+    ]
     summary_cards_html = ""
     for cat in categories_present:
         cat_results = [r for r in results if r["category"] == cat]
@@ -1167,7 +1250,11 @@ def write_html_report(results: list[dict], output_path: str, base_url: str, syst
     }
 """
 
-    page_title = f"Agent Moss — Evaluation Report — {system_name}" if system_name else "Agent Moss — Evaluation Report"
+    page_title = (
+        f"Agent Moss — Evaluation Report — {system_name}"
+        if system_name
+        else "Agent Moss — Evaluation Report"
+    )
     html_out = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1225,7 +1312,9 @@ def print_summary_table(results: list[dict]) -> None:
         s = r["scoring"]
         status = "PASS" if passed(r) else "fail"
         notes = s.get("notes", "")[:40]
-        print(f"{r['id']:<16} {r['category']:<14} {s['score']:>5.1f}/3  {status:>4}  {notes}")
+        print(
+            f"{r['id']:<16} {r['category']:<14} {s['score']:>5.1f}/3  {status:>4}  {notes}"
+        )
     print("=" * 70)
 
     total = len(results)
@@ -1238,11 +1327,18 @@ def print_summary_table(results: list[dict]) -> None:
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run Agent Moss eval")
-    parser.add_argument("--base-url", default="http://localhost:8000", help="API base URL")
-    parser.add_argument("--output", default="eval/report.md", help="Output markdown report path")
-    parser.add_argument("--cases", default="eval/cases.json", help="Test cases JSON file")
+    parser.add_argument(
+        "--base-url", default="http://localhost:8000", help="API base URL"
+    )
+    parser.add_argument(
+        "--output", default="eval/report.md", help="Output markdown report path"
+    )
+    parser.add_argument(
+        "--cases", default="eval/cases.json", help="Test cases JSON file"
+    )
     parser.add_argument(
         "--adapter",
         choices=["v1", "v2"],
@@ -1263,8 +1359,8 @@ def main() -> None:
     parser.add_argument(
         "--states",
         help="Comma-separated state abbreviations to include (e.g. CO,TN). "
-             "Cases with no detectable state are always included. "
-             "Useful for v1 when only some states have data.",
+        "Cases with no detectable state are always included. "
+        "Useful for v1 when only some states have data.",
     )
     args = parser.parse_args()
 
@@ -1284,14 +1380,18 @@ def main() -> None:
     if args.adapter == "v1":
         skipped = [c for c in cases if c["category"] in V1_SKIP_CATEGORIES]
         if skipped:
-            print(f"v1 adapter: skipping {len(skipped)} cases in categories {V1_SKIP_CATEGORIES}")
+            print(
+                f"v1 adapter: skipping {len(skipped)} cases in categories {V1_SKIP_CATEGORIES}"
+            )
         cases = [c for c in cases if c["category"] not in V1_SKIP_CATEGORIES]
 
     if args.states:
         allowed = {s.strip().upper() for s in args.states.split(",")}
+
         def _state_allowed(case: dict) -> bool:
             abbrev = extract_state_abbrev(case["query"])
             return abbrev is None or abbrev in allowed
+
         cases = [c for c in cases if _state_allowed(c)]
         print(f"State filter: {allowed} — {len(cases)} cases remaining")
 
@@ -1306,23 +1406,29 @@ def main() -> None:
     client = OpenAI(api_key=api_key)
     results = []
 
-    print(f"Running {len(cases)} cases against {args.base_url} (adapter={args.adapter})\n")
+    print(
+        f"Running {len(cases)} cases against {args.base_url} (adapter={args.adapter})\n"
+    )
 
     for i, case in enumerate(cases, 1):
         print(f"[{i}/{len(cases)}] {case['id']} — {case['query'][:60]}...")
         try:
-            response_text = post_to_api(args.base_url, case["query"], adapter=args.adapter)
+            response_text = post_to_api(
+                args.base_url, case["query"], adapter=args.adapter
+            )
         except Exception as e:
             print(f"  ERROR calling API: {e}")
-            results.append({
-                "id": case["id"],
-                "category": case["category"],
-                "query": case["query"],
-                "expected_record_types": case.get("expected_record_types", []),
-                "aspects": case.get("aspects", []),
-                "response": f"[API ERROR: {e}]",
-                "scoring": {"score": 0, "max_score": 3, "notes": f"API error: {e}"},
-            })
+            results.append(
+                {
+                    "id": case["id"],
+                    "category": case["category"],
+                    "query": case["query"],
+                    "expected_record_types": case.get("expected_record_types", []),
+                    "aspects": case.get("aspects", []),
+                    "response": f"[API ERROR: {e}]",
+                    "scoring": {"score": 0, "max_score": 3, "notes": f"API error: {e}"},
+                }
+            )
             continue
 
         try:
@@ -1331,17 +1437,21 @@ def main() -> None:
             print(f"  ERROR scoring: {e}")
             scoring = {"score": 0, "max_score": 3, "notes": f"Scoring error: {e}"}
 
-        results.append({
-            "id": case["id"],
-            "category": case["category"],
-            "query": case["query"],
-            "expected_record_types": case.get("expected_record_types", []),
-            "aspects": case.get("aspects", []),
-            "response": response_text,
-            "scoring": scoring,
-        })
+        results.append(
+            {
+                "id": case["id"],
+                "category": case["category"],
+                "query": case["query"],
+                "expected_record_types": case.get("expected_record_types", []),
+                "aspects": case.get("aspects", []),
+                "response": response_text,
+                "scoring": scoring,
+            }
+        )
         status = "PASS" if passed(results[-1]) else "fail"
-        print(f"  {status}  score={scoring['score']}/3  {scoring.get('notes', '')[:60]}")
+        print(
+            f"  {status}  score={scoring['score']}/3  {scoring.get('notes', '')[:60]}"
+        )
 
     print_summary_table(results)
     write_report(results, args.output, args.base_url, system_name=system_name)

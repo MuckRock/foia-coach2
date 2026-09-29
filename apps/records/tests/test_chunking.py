@@ -1,4 +1,5 @@
 """Tests for chunk_pdf() chunking logic."""
+
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -42,7 +43,9 @@ def test_long_page_produces_multiple_chunks(mock_reader_cls):
     """A page longer than max_tokens is split into multiple chunks each ≤ max_tokens."""
     words = " ".join(["word"] * 900)
     mock_reader_cls.return_value = make_mock_reader([words])
-    chunks = list(chunk_pdf("fake.pdf", max_tokens=400, overlap_tokens=50, min_tokens=50))
+    chunks = list(
+        chunk_pdf("fake.pdf", max_tokens=400, overlap_tokens=50, min_tokens=50)
+    )
     assert len(chunks) > 1
     for c in chunks:
         assert c["token_count"] <= 400
@@ -53,11 +56,15 @@ def test_overlap_carried_across_pages(mock_reader_cls):
     """Words from page 1 appear in page 2's first chunk due to overlap."""
     page1_words = ["alpha"] * 60
     page2_words = ["beta"] * 60
-    mock_reader_cls.return_value = make_mock_reader([
-        " ".join(page1_words),
-        " ".join(page2_words),
-    ])
-    chunks = list(chunk_pdf("fake.pdf", max_tokens=800, overlap_tokens=10, min_tokens=5))
+    mock_reader_cls.return_value = make_mock_reader(
+        [
+            " ".join(page1_words),
+            " ".join(page2_words),
+        ]
+    )
+    chunks = list(
+        chunk_pdf("fake.pdf", max_tokens=800, overlap_tokens=10, min_tokens=5)
+    )
     # page 2 chunk text should contain "alpha" from the overlap
     page2_chunks = [c for c in chunks if c["page_number"] == 2]
     assert any("alpha" in c["text"] for c in page2_chunks)

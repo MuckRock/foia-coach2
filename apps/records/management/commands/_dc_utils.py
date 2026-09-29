@@ -3,7 +3,9 @@ from documentcloud import DocumentCloud
 
 
 def get_dc_client():
-    return DocumentCloud(settings.DOCUMENTCLOUD_USERNAME, settings.DOCUMENTCLOUD_PASSWORD)
+    return DocumentCloud(
+        settings.DOCUMENTCLOUD_USERNAME, settings.DOCUMENTCLOUD_PASSWORD
+    )
 
 
 def get_project_documents(client, project_id: str, doc_type: str | None = None):
@@ -35,4 +37,3 @@ def pages_to_llm_text(pages: list[dict]) -> str:
         text = p["contents"].strip()
         lines.append(f"[Page {page_num}]\n{text}")
     return "\n\n".join(lines)
-

@@ -45,7 +45,9 @@ class TestSourceDocument:
 @pytest.mark.django_db
 class TestRetentionRecord:
     def test_str(self):
-        record = RetentionRecordFactory(record_number="1.50", record_title="Building Permits")
+        record = RetentionRecordFactory(
+            record_number="1.50", record_title="Building Permits"
+        )
         assert str(record) == "1.50 — Building Permits"
 
     def test_to_chunk_text_includes_all_fields(self):

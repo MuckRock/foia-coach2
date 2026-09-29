@@ -25,7 +25,9 @@ def format_retrieved_chunks(chunks: list[dict]) -> tuple[str, dict]:
             "url": url,
             "page": c["page_number"],
         }
-        parts.append(f"\n[{key}] Source: {c['document_title']}, page {c['page_number']}\n{c['text']}")
+        parts.append(
+            f"\n[{key}] Source: {c['document_title']}, page {c['page_number']}\n{c['text']}"
+        )
     return "\n".join(parts), citation_map
 
 
@@ -68,7 +70,7 @@ def format_retrieved_records(records: list[dict]) -> tuple[str, dict]:
 
 def postprocess_citations(text: str, citation_map: dict) -> str:
     """Renumber [G1]/[R1] citation keys to sequential [1], [2], ... and append footnotes."""
-    key_pattern = re.compile(r'\[([GR]\d+)\]')
+    key_pattern = re.compile(r"\[([GR]\d+)\]")
 
     # Collect unique keys in order of first appearance
     seen: list[str] = []
@@ -84,20 +86,20 @@ def postprocess_citations(text: str, citation_map: dict) -> str:
 
     # Strip any LLM-generated footnotes/sources section at the end.
     # Look for a trailing block of lines that start with [G or [R keys.
-    stripped = re.sub(
-        r'\n---\s*\n(?:\s*\[(?:[GR]\d+)\].*\n?)+\s*$', '', text
-    )
+    stripped = re.sub(r"\n---\s*\n(?:\s*\[(?:[GR]\d+)\].*\n?)+\s*$", "", text)
     # Also catch "Sources:" / "**Sources:**" / "References:" headers
     stripped = re.sub(
-        r'\n+(?:\*{0,2}(?:Sources|References|Citations)\*{0,2}:?\s*)\n(?:\s*\[(?:[GR]\d+)\].*\n?)+\s*$',
-        '', stripped, flags=re.IGNORECASE,
+        r"\n+(?:\*{0,2}(?:Sources|References|Citations)\*{0,2}:?\s*)\n(?:\s*\[(?:[GR]\d+)\].*\n?)+\s*$",
+        "",
+        stripped,
+        flags=re.IGNORECASE,
     )
 
     # Replace all citation keys with sequential numbers
     def replace_key(match):
         key = match.group(1)
         if key in renumber:
-            return f'[{renumber[key]}]'
+            return f"[{renumber[key]}]"
         return match.group(0)
 
     processed = key_pattern.sub(replace_key, stripped)
@@ -118,9 +120,7 @@ def postprocess_citations(text: str, citation_map: dict) -> str:
         else:
             # Guidance document
             if info.get("url"):
-                footnotes.append(
-                    f'[{num}] [{info["title"]}]({info["url"]})'
-                )
+                footnotes.append(f'[{num}] [{info["title"]}]({info["url"]})')
             else:
                 footnotes.append(f'[{num}] {info["title"]}, page {info["page"]}')
 
@@ -159,11 +159,14 @@ async def build_messages(
         f"You are answering questions about {state} public records. "
         f"Begin your response by stating 'Working with {state} data.' on its own line, "
         "then continue with your answer.\n\n"
-        if state else ""
+        if state
+        else ""
     )
 
     if chapter:
-        chapter_lines = [f"=== {state.upper()} NFOIC CHAPTER (legal referral contact) ==="]
+        chapter_lines = [
+            f"=== {state.upper()} NFOIC CHAPTER (legal referral contact) ==="
+        ]
         chapter_lines.append(f"Organization: {chapter.name}")
         if chapter.website:
             chapter_lines.append(f"Website: {chapter.website}")
@@ -186,12 +189,12 @@ async def build_messages(
         "=== GUIDANCE DOCUMENTS (check these first) ===\n"
         f"{chunks_text}\n\n"
         "=== RETENTION SCHEDULE RECORDS ===\n"
-        f"{records_text}"
-        + (f"\n\n{chapter_section}" if chapter_section else "")
+        f"{records_text}" + (f"\n\n{chapter_section}" if chapter_section else "")
     )
 
     prior_history = [
-        m for m in conversation_history
+        m
+        for m in conversation_history
         if not (m["role"] == "user" and m["content"] == user_message)
     ]
 

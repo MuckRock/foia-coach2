@@ -1,4 +1,5 @@
 """Tests for document_search() vector similarity function."""
+
 import pytest
 from asgiref.sync import sync_to_async
 
@@ -40,6 +41,7 @@ class TestDocumentSearch:
         DocumentChunkFactory(embedding=None)
         # Ensure there are no embedded chunks
         from apps.records.models import DocumentChunk
+
         DocumentChunk.objects.filter(embedding__isnull=False).delete()
 
         results = document_search(query_embedding=DUMMY_EMBEDDING, limit=10)

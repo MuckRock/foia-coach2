@@ -6,6 +6,7 @@ Usage:
         --jurisdiction "Colorado" \
         --filename "Colorado_Schedules.pdf"
 """
+
 import json
 import re
 from pathlib import Path
@@ -43,7 +44,6 @@ class Command(BaseCommand):
 
         if isinstance(records_data, dict):
             records_data = records_data["retention_schedule_entries"]
-
 
         jurisdiction = options["jurisdiction"]
         filename = options["filename"] or json_path.name

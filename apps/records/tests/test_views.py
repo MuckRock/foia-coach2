@@ -1,4 +1,5 @@
 """Tests for the chat completions endpoint."""
+
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 

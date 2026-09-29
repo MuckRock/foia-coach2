@@ -4,6 +4,7 @@ Management command to generate OpenAI embeddings for DocumentChunks.
 Usage:
     python manage.py generate_document_embeddings [--supporting-document <id>] [--force]
 """
+
 import time
 
 from django.conf import settings

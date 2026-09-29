@@ -4,6 +4,7 @@ Management command: create and activate an improved system prompt (Project Moss 
 Usage:
     docker compose -f docker-compose.yml run --rm django python manage.py update_system_prompt
 """
+
 from django.core.management.base import BaseCommand
 
 from apps.records.models import SystemPrompt
@@ -138,7 +139,9 @@ class Command(BaseCommand):
 
         existing = SystemPrompt.objects.filter(name=PROMPT_NAME).first()
         if existing:
-            self.stdout.write(f"Prompt '{PROMPT_NAME}' already exists (id={existing.pk}). Activating it.")
+            self.stdout.write(
+                f"Prompt '{PROMPT_NAME}' already exists (id={existing.pk}). Activating it."
+            )
             existing.is_active = True
             existing.save()
         else:
@@ -147,7 +150,11 @@ class Command(BaseCommand):
                 content=PROMPT_CONTENT,
                 is_active=True,
             )
-            self.stdout.write(self.style.SUCCESS(f"Created and activated '{PROMPT_NAME}' (id={prompt.pk})."))
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Created and activated '{PROMPT_NAME}' (id={prompt.pk})."
+                )
+            )
 
         active = SystemPrompt.objects.filter(is_active=True).first()
         self.stdout.write(f"Active prompt: {active}")

@@ -15,12 +15,12 @@ def hybrid_search(
     Returns a list of dicts with record fields and rrf_score.
     """
     params = [
-        query_embedding,   # dense ORDER BY (CTE)
-        query_embedding,   # dense ORDER BY (inner)
-        query_text,        # sparse ts_rank
-        query_text,        # sparse plainto_tsquery (WHERE)
-        rrf_k,             # RRF constant (dense)
-        rrf_k,             # RRF constant (sparse)
+        query_embedding,  # dense ORDER BY (CTE)
+        query_embedding,  # dense ORDER BY (inner)
+        query_text,  # sparse ts_rank
+        query_text,  # sparse plainto_tsquery (WHERE)
+        rrf_k,  # RRF constant (dense)
+        rrf_k,  # RRF constant (sparse)
         limit,
     ]
 

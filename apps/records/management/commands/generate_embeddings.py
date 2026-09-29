@@ -4,6 +4,7 @@ Management command to generate OpenAI embeddings for RetentionRecords.
 Usage:
     python manage.py generate_embeddings [--source-document <id>] [--force]
 """
+
 import time
 
 from django.conf import settings

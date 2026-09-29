@@ -1,6 +1,12 @@
 import factory
 
-from apps.records.models import DocumentChunk, RetentionRecord, SourceDocument, SupportingDocument, SystemPrompt
+from apps.records.models import (
+    DocumentChunk,
+    RetentionRecord,
+    SourceDocument,
+    SupportingDocument,
+    SystemPrompt,
+)
 
 
 class SystemPromptFactory(factory.django.DjangoModelFactory):
@@ -17,7 +23,9 @@ class SourceDocumentFactory(factory.django.DjangoModelFactory):
         model = SourceDocument
 
     filename = factory.Faker("file_name", extension="pdf")
-    document_title = factory.Sequence(lambda n: f"SCHEDULE NO. {n} - TEST RECORDS (Colorado Special Districts)")
+    document_title = factory.Sequence(
+        lambda n: f"SCHEDULE NO. {n} - TEST RECORDS (Colorado Special Districts)"
+    )
     jurisdiction = "Colorado"
     entity_type = "Special Districts"
     schedule_number = factory.Sequence(lambda n: str(n))

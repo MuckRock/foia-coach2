@@ -1,6 +1,7 @@
 """
 Base settings for FOIA Coach API.
 """
+
 from pathlib import Path
 
 import environ
@@ -74,13 +75,18 @@ ASGI_APPLICATION = "config.asgi.application"
 
 # DATABASES
 DATABASES = {
-    "default": env.db("DATABASE_URL", default="postgres://postgres:postgres@localhost:5432/foia_coach_api"),
+    "default": env.db(
+        "DATABASE_URL",
+        default="postgres://postgres:postgres@localhost:5432/foia_coach_api",
+    ),
 }
 DATABASES["default"]["CONN_MAX_AGE"] = env.int("CONN_MAX_AGE", default=60)
 
 # AUTHENTICATION
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
@@ -88,6 +94,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # LOGGING
 import os as _os
+
 _log_file = env("DJANGO_LOG_FILE", default="")
 if _log_file and not _os.path.isdir(_os.path.dirname(_log_file) or "."):
     _log_file = ""  # disable if parent directory doesn't exist
@@ -113,7 +120,8 @@ LOGGING = {
                     "delay": True,
                 }
             }
-            if _log_file else {}
+            if _log_file
+            else {}
         ),
     },
     "loggers": {
@@ -148,12 +156,18 @@ ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["*"])
 DOCUMENTCLOUD_USERNAME = env("DOCUMENTCLOUD_USERNAME", default="")
 DOCUMENTCLOUD_PASSWORD = env("DOCUMENTCLOUD_PASSWORD", default="")
 LLM_MODEL = env("LLM_MODEL", default="gpt-4o")
-LLM_BASE_URL = env("LLM_BASE_URL", default="")  # leave empty for OpenAI; set to https://api.anthropic.com/v1 for Claude
+LLM_BASE_URL = env(
+    "LLM_BASE_URL", default=""
+)  # leave empty for OpenAI; set to https://api.anthropic.com/v1 for Claude
 _llm_api_key_override = env("LLM_API_KEY", default="")
 OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
 LLM_API_KEY = _llm_api_key_override if _llm_api_key_override else OPENAI_API_KEY
 QUERY_REWRITE_MODEL = env("QUERY_REWRITE_MODEL", default="gpt-4o-mini")
-EXTRACTION_MODEL = env("EXTRACTION_MODEL", default="gpt-5.2")  # used for import commands (always OpenAI)
+EXTRACTION_MODEL = env(
+    "EXTRACTION_MODEL", default="gpt-5.2"
+)  # used for import commands (always OpenAI)
 EMBEDDING_MODEL = env("EMBEDDING_MODEL", default="text-embedding-3-small")
 LLM_TEMPERATURE = env.float("LLM_TEMPERATURE", default=0.3)
-LLM_TEMPERATURE_ENABLED = env.bool("LLM_TEMPERATURE_ENABLED", default=True)  # set False for models that deprecated temperature (gpt-5.5, claude)
+LLM_TEMPERATURE_ENABLED = env.bool(
+    "LLM_TEMPERATURE_ENABLED", default=True
+)  # set False for models that deprecated temperature (gpt-5.5, claude)

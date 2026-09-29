@@ -1,8 +1,14 @@
 """Tests for prompt assembly functions."""
+
 import pytest
 from asgiref.sync import sync_to_async
 
-from apps.records.prompts import build_messages, format_retrieved_chunks, format_retrieved_records, postprocess_citations
+from apps.records.prompts import (
+    build_messages,
+    format_retrieved_chunks,
+    format_retrieved_records,
+    postprocess_citations,
+)
 from apps.records.tests.factories import SystemPromptFactory
 
 
@@ -107,23 +113,33 @@ class TestFormatRetrievedRecords:
 class TestBuildMessages:
     @pytest.mark.asyncio
     async def test_structure(self):
-        await sync_to_async(SystemPromptFactory)(is_active=True, content="You are a helpful assistant.")
-        messages, citation_map = await build_messages("How long for building permits?", [], [], [])
+        await sync_to_async(SystemPromptFactory)(
+            is_active=True, content="You are a helpful assistant."
+        )
+        messages, citation_map = await build_messages(
+            "How long for building permits?", [], [], []
+        )
         assert messages[0]["role"] == "system"
         assert messages[-1]["role"] == "user"
 
     @pytest.mark.asyncio
     async def test_context_injected(self):
-        await sync_to_async(SystemPromptFactory)(is_active=True, content="You are a helpful assistant.")
+        await sync_to_async(SystemPromptFactory)(
+            is_active=True, content="You are a helpful assistant."
+        )
         records = [make_record()]
-        messages, citation_map = await build_messages("How long for building permits?", records, [], [])
+        messages, citation_map = await build_messages(
+            "How long for building permits?", records, [], []
+        )
         system_messages = [m for m in messages if m["role"] == "system"]
         combined = " ".join(m["content"] for m in system_messages)
         assert "Building Permits" in combined
 
     @pytest.mark.asyncio
     async def test_excludes_duplicate_user_message(self):
-        await sync_to_async(SystemPromptFactory)(is_active=True, content="You are a helpful assistant.")
+        await sync_to_async(SystemPromptFactory)(
+            is_active=True, content="You are a helpful assistant."
+        )
         user_msg = "How long for building permits?"
         history = [
             {"role": "user", "content": user_msg},
@@ -137,14 +153,18 @@ class TestBuildMessages:
 
     @pytest.mark.asyncio
     async def test_last_message_is_user(self):
-        await sync_to_async(SystemPromptFactory)(is_active=True, content="You are helpful.")
+        await sync_to_async(SystemPromptFactory)(
+            is_active=True, content="You are helpful."
+        )
         messages, _ = await build_messages("What is the retention period?", [], [], [])
         assert messages[-1]["role"] == "user"
         assert messages[-1]["content"] == "What is the retention period?"
 
     @pytest.mark.asyncio
     async def test_citation_map_populated(self):
-        await sync_to_async(SystemPromptFactory)(is_active=True, content="You are helpful.")
+        await sync_to_async(SystemPromptFactory)(
+            is_active=True, content="You are helpful."
+        )
         records = [make_record()]
         chunks = [make_chunk()]
         _, citation_map = await build_messages("test", records, chunks, [])
@@ -157,7 +177,12 @@ class TestPostprocessCitations:
         citation_map = {
             "G1": {"title": "Guide A", "url": "https://example.com/a", "page": 1},
             "G2": {"title": "Guide B", "url": "https://example.com/b", "page": 2},
-            "R1": {"label": "Record X (Record 1.10)", "source_title": "Schedule 1", "url": "https://example.com/r1", "page": 5},
+            "R1": {
+                "label": "Record X (Record 1.10)",
+                "source_title": "Schedule 1",
+                "url": "https://example.com/r1",
+                "page": 5,
+            },
         }
         text = "Some fact [G2]. Another fact [R1]. More info [G1]."
         result = postprocess_citations(text, citation_map)
@@ -183,7 +208,12 @@ class TestPostprocessCitations:
 
     def test_footnotes_include_urls(self):
         citation_map = {
-            "R1": {"label": "Fire Records (Record 100.50.F)", "source_title": "SCHEDULE 100", "url": "https://example.com/s100", "page": 2},
+            "R1": {
+                "label": "Fire Records (Record 100.50.F)",
+                "source_title": "SCHEDULE 100",
+                "url": "https://example.com/s100",
+                "page": 2,
+            },
         }
         text = "Request fire records [R1]."
         result = postprocess_citations(text, citation_map)

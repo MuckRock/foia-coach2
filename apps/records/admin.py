@@ -1,9 +1,14 @@
 from django.contrib import admin
 from django.core.management import call_command
 
-from apps.records.models import (DocumentChunk, NFOICChapter, RetentionRecord,
-                                 SourceDocument, SupportingDocument,
-                                 SystemPrompt)
+from apps.records.models import (
+    DocumentChunk,
+    NFOICChapter,
+    RetentionRecord,
+    SourceDocument,
+    SupportingDocument,
+    SystemPrompt,
+)
 
 
 @admin.register(SystemPrompt)

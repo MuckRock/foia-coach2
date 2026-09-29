@@ -1,4 +1,5 @@
 """Tests for hybrid_search()."""
+
 import pytest
 
 from apps.records.search import hybrid_search
@@ -43,7 +44,12 @@ class TestHybridSearch:
         results = hybrid_search("building permits", DUMMY_EMBEDDING)
         assert len(results) >= 1
         keys = results[0].keys()
-        for expected_key in ["record_title", "rrf_score", "record_number", "minimum_retention_period"]:
+        for expected_key in [
+            "record_title",
+            "rrf_score",
+            "record_number",
+            "minimum_retention_period",
+        ]:
             assert expected_key in keys
 
     def test_excludes_cross_references_by_default(self):
@@ -62,7 +68,9 @@ class TestHybridSearch:
             embedding=DUMMY_EMBEDDING,
             is_cross_reference=True,
         )
-        results = hybrid_search("building", DUMMY_EMBEDDING, exclude_cross_references=True)
+        results = hybrid_search(
+            "building", DUMMY_EMBEDDING, exclude_cross_references=True
+        )
         result_ids = [r["id"] for r in results]
         assert cross_ref.id not in result_ids
 
@@ -110,7 +118,9 @@ class TestHybridSearch:
             record_description="Building permits for California.",
             embedding=DUMMY_EMBEDDING,
         )
-        results = hybrid_search("building permits", DUMMY_EMBEDDING, jurisdiction="Colorado")
+        results = hybrid_search(
+            "building permits", DUMMY_EMBEDDING, jurisdiction="Colorado"
+        )
         result_ids = [r["id"] for r in results]
         assert co_record.id in result_ids
         assert ca_record.id not in result_ids

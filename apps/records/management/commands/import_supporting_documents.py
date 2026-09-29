@@ -4,6 +4,7 @@ Management command to import a PDF as chunked DocumentChunks.
 Usage:
     python manage.py import_supporting_documents <pdf_file> --title "..." [--document-type "..."] [--jurisdiction "..."] [--replace]
 """
+
 import os
 
 from django.core.management.base import BaseCommand, CommandError
@@ -44,12 +45,16 @@ def chunk_pdf(pdf_path, max_tokens=800, overlap_tokens=100, min_tokens=50):
                 "token_count": len(words),
             }
             chunk_index += 1
-            pending_overlap = " ".join(words[-overlap_tokens:]) if len(words) >= overlap_tokens else text
+            pending_overlap = (
+                " ".join(words[-overlap_tokens:])
+                if len(words) >= overlap_tokens
+                else text
+            )
         else:
             start = 0
             while start < len(words):
                 end = start + max_tokens
-                chunk_words = words[start:min(end, len(words))]
+                chunk_words = words[start : min(end, len(words))]
                 yield {
                     "chunk_index": chunk_index,
                     "page_number": page_num,
@@ -60,7 +65,11 @@ def chunk_pdf(pdf_path, max_tokens=800, overlap_tokens=100, min_tokens=50):
                 if end >= len(words):
                     break
                 start = end - overlap_tokens
-            pending_overlap = " ".join(words[-overlap_tokens:]) if len(words) >= overlap_tokens else text
+            pending_overlap = (
+                " ".join(words[-overlap_tokens:])
+                if len(words) >= overlap_tokens
+                else text
+            )
 
 
 class Command(BaseCommand):
@@ -69,8 +78,15 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("pdf_file", help="Path to the PDF file to import")
         parser.add_argument("--title", required=True, help="Document title")
-        parser.add_argument("--document-type", dest="document_type", default="", help="Document type (e.g. 'FOIA Guide')")
-        parser.add_argument("--jurisdiction", default="", help="Jurisdiction (e.g. 'Colorado')")
+        parser.add_argument(
+            "--document-type",
+            dest="document_type",
+            default="",
+            help="Document type (e.g. 'FOIA Guide')",
+        )
+        parser.add_argument(
+            "--jurisdiction", default="", help="Jurisdiction (e.g. 'Colorado')"
+        )
         parser.add_argument(
             "--replace",
             action="store_true",
@@ -118,25 +134,33 @@ class Command(BaseCommand):
         total = len(chunks_data)
 
         if total == 0:
-            self.stdout.write(self.style.WARNING("No chunks produced — check the PDF has extractable text."))
+            self.stdout.write(
+                self.style.WARNING(
+                    "No chunks produced — check the PDF has extractable text."
+                )
+            )
             return
 
         self.stdout.write(f"Creating {total} chunks...")
         batch_size = 100
         for i in range(0, total, batch_size):
             batch = chunks_data[i : i + batch_size]
-            DocumentChunk.objects.bulk_create([
-                DocumentChunk(
-                    supporting_document=supporting_doc,
-                    chunk_index=c["chunk_index"],
-                    page_number=c["page_number"],
-                    text=c["text"],
-                    token_count=c["token_count"],
-                )
-                for c in batch
-            ])
+            DocumentChunk.objects.bulk_create(
+                [
+                    DocumentChunk(
+                        supporting_document=supporting_doc,
+                        chunk_index=c["chunk_index"],
+                        page_number=c["page_number"],
+                        text=c["text"],
+                        token_count=c["token_count"],
+                    )
+                    for c in batch
+                ]
+            )
 
         supporting_doc.chunk_count = total
         supporting_doc.save(update_fields=["chunk_count"])
 
-        self.stdout.write(self.style.SUCCESS(f"Done. Imported {total} chunks for '{title}'."))
+        self.stdout.write(
+            self.style.SUCCESS(f"Done. Imported {total} chunks for '{title}'.")
+        )
