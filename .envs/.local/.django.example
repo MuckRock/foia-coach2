@@ -1,0 +1,36 @@
+# Copy to .envs/.local/.django and fill in.
+#
+# docker-compose.yml sets DJANGO_SETTINGS_MODULE and DATABASE_URL directly in the
+# service's `environment:` block, which outranks this file — setting them here has
+# no effect. DJANGO_DEBUG and DJANGO_ALLOWED_HOSTS are also ignored under local
+# settings, which hardcode DEBUG = True and ALLOWED_HOSTS = ["*"].
+
+# --- Required ---
+# Used for embeddings, query rewriting, state detection, HyDE, and LLM extraction
+# in the import commands — regardless of which provider serves LLM_MODEL.
+OPENAI_API_KEY=
+
+# --- Answer model ---
+# Leave LLM_BASE_URL empty for OpenAI. For Anthropic, set both LLM_BASE_URL and
+# LLM_API_KEY (LLM_API_KEY falls back to OPENAI_API_KEY when unset).
+LLM_MODEL=gpt-4o
+LLM_BASE_URL=
+LLM_API_KEY=
+LLM_TEMPERATURE=0.3
+# Set False for models that reject a temperature parameter (gpt-5.5, claude)
+LLM_TEMPERATURE_ENABLED=True
+
+# --- Support models (always OpenAI, always via OPENAI_API_KEY) ---
+QUERY_REWRITE_MODEL=gpt-4o-mini
+EMBEDDING_MODEL=text-embedding-3-small
+EXTRACTION_MODEL=gpt-5.2
+
+# --- DocumentCloud (only needed for the import_*_dc management commands) ---
+DOCUMENTCLOUD_USERNAME=
+DOCUMENTCLOUD_PASSWORD=
+
+# --- Optional ---
+DJANGO_SECRET_KEY=local-dev-secret-key-change-in-production
+# Absolute path to an additional log file; ignored if the parent dir doesn't exist
+DJANGO_LOG_FILE=
+CONN_MAX_AGE=60

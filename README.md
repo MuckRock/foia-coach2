@@ -53,7 +53,9 @@ config/settings/
 ### Setup
 
 ```bash
-# Copy and fill in env files
+# Copy and fill in env files. Both must exist before Compose will start —
+# it refuses to run when a file listed under `env_file:` is missing.
+# At minimum, set OPENAI_API_KEY in .envs/.local/.django.
 cp .envs/.local/.django.example .envs/.local/.django
 cp .envs/.local/.postgres.example .envs/.local/.postgres
 
@@ -117,14 +119,21 @@ All settings are via environment variables:
 
 | Variable | Description | Default |
 |---|---|---|
-| `OPENAI_API_KEY` | OpenAI API key | — |
+| `OPENAI_API_KEY` | OpenAI key — used for embeddings, query rewriting, state detection, HyDE, and import-time extraction regardless of which provider serves `LLM_MODEL` | — |
 | `DATABASE_URL` | PostgreSQL connection string | — |
 | `DJANGO_SECRET_KEY` | Django secret key | — |
-| `LLM_MODEL` | Model for completions | `gpt-4o` |
-| `QUERY_REWRITE_MODEL` | Model for query rewriting | `gpt-4o-mini` |
+| `LLM_MODEL` | Model for the answer completion | `gpt-4o` |
+| `LLM_BASE_URL` | Leave empty for OpenAI; set to an OpenAI-compatible base URL (e.g. Anthropic) to serve completions elsewhere | — |
+| `LLM_API_KEY` | Key for `LLM_BASE_URL`; falls back to `OPENAI_API_KEY` | — |
+| `LLM_TEMPERATURE` | Completion temperature | `0.3` |
+| `LLM_TEMPERATURE_ENABLED` | Set `False` for models that reject a `temperature` parameter | `True` |
+| `QUERY_REWRITE_MODEL` | Model for query rewriting, state detection, and HyDE | `gpt-4o-mini` |
 | `EMBEDDING_MODEL` | Model for embeddings | `text-embedding-3-small` |
-| `LLM_TEMPERATURE` | Completion temperature | `0.2` |
+| `EXTRACTION_MODEL` | Model used by the DocumentCloud import commands | `gpt-5.2` |
+| `DOCUMENTCLOUD_USERNAME` / `DOCUMENTCLOUD_PASSWORD` | Credentials for the `import_*_dc` commands | — |
 | `DJANGO_ALLOWED_HOSTS` | Comma-separated allowed hosts | `*` (local) |
+| `DJANGO_LOG_FILE` | Extra log file path; ignored if the parent directory doesn't exist | — |
+| `CONN_MAX_AGE` | Database connection lifetime, seconds | `60` |
 
 ---
 
@@ -163,12 +172,16 @@ The repo includes `render.yaml` for one-click Blueprint deployment.
 Run import commands locally, pointed at the Render external database URL:
 
 ```bash
-DATABASE_URL="postgresql://..." docker compose run --rm django \
+docker compose run -e DATABASE_URL="postgresql://..." --rm django \
   python manage.py import_retention_records /path/to/schedule.json --jurisdiction "Colorado"
 
-DATABASE_URL="postgresql://..." docker compose run --rm django \
+docker compose run -e DATABASE_URL="postgresql://..." --rm django \
   python manage.py generate_embeddings
 ```
+
+`DATABASE_URL` must be passed with `-e`, not as a shell variable — `docker-compose.yml`
+sets it to the local database in the service's `environment:` block, which takes
+precedence over the host shell.
 
 Always deploy first (so migrations are applied) before running imports against production.
 

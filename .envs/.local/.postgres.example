@@ -1,0 +1,13 @@
+# Copy to .envs/.local/.postgres.
+#
+# Nothing actually reads these: the postgres container sets its own POSTGRES_*
+# values inline in docker-compose.yml, and the Django side connects via
+# DATABASE_URL (also set inline). The file exists only because docker-compose.yml
+# lists it under `env_file:`, and Compose refuses to start when a listed env file
+# is missing. Keep the values in sync with the postgres service block.
+
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+POSTGRES_DB=foia_coach_api
+POSTGRES_USER=foia_coach_api
+POSTGRES_PASSWORD=foia_coach_api

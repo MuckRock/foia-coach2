@@ -17,9 +17,11 @@ local_settings.py
 staticfiles/
 media/
 
-# Environment files with secrets
-.envs/.local/
-.envs/.production/
+# Environment files with secrets (but keep the .example templates)
+.envs/.local/*
+.envs/.production/*
+!.envs/.local/*.example
+!.envs/.production/*.example
 .mcp.json
 
 # pytest
